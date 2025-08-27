@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/drornir/better-actions/config"
-	"github.com/drornir/better-actions/log"
+	"github.com/drornir/better-actions/pkg/config"
+	"github.com/drornir/better-actions/pkg/log"
 )
 
 var (

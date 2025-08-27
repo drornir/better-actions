@@ -2,6 +2,10 @@
   "lsp": {
     "gopls": {
       "initialization_options": {
+        "env": {
+          "GOEXPERIMENT": "jsonv2"
+        },
+
         "formatting.gofumpt": true,
         "formatting.local": "github.com/drornir/betteractions",
 

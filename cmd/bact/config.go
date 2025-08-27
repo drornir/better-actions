@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/drornir/better-actions/config"
+	"github.com/drornir/better-actions/pkg/config"
 	"github.com/spf13/cobra"
 )
 
