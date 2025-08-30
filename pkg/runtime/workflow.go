@@ -7,7 +7,7 @@ import (
 )
 
 func RunWorkflow(ctx context.Context, wf *workflow.Workflow) error {
-	jobs := wf.Jobs
+	jobs := wf.YAML.Jobs
 
 	for jobName, job := range jobs {
 		err := RunJob(ctx, jobName, job)

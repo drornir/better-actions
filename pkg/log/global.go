@@ -56,3 +56,11 @@ func W(ctx context.Context, msg string, a ...any) {
 func E(ctx context.Context, msg string, a ...any) {
 	GetGlobal().E(ctx, msg, a...)
 }
+
+func With(args ...any) *Logger {
+	return GetGlobal().With(args...)
+}
+
+func WithGroup(name string) *Logger {
+	return GetGlobal().WithGroup(name)
+}

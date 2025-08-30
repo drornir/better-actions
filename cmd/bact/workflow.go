@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drornir/better-actions/pkg/runtime"
-	"github.com/drornir/better-actions/workflow"
 	"github.com/spf13/cobra"
+
+	"github.com/drornir/better-actions/pkg/runtime"
+	"github.com/drornir/better-actions/pkg/yamls"
+	"github.com/drornir/better-actions/workflow"
 )
 
 var workflowCmd = &cobra.Command{
@@ -85,10 +87,10 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 		return err
 	}
 
-	wf, err := workflow.ReadWorkflow(openFile)
+	wf, err := yamls.ReadWorkflow(openFile, false)
 	if err != nil {
 		return err
 	}
 
-	return runtime.RunWorkflow(ctx, wf)
+	return runtime.RunWorkflow(ctx, &workflow.Workflow{YAML: wf})
 }

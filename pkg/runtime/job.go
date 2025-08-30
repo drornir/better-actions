@@ -7,14 +7,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/drornir/better-actions/pkg/log"
-	"github.com/drornir/better-actions/pkg/shell"
-	"github.com/drornir/better-actions/workflow"
 	"github.com/kballard/go-shellquote"
 	"github.com/samber/oops"
+
+	"github.com/drornir/better-actions/pkg/log"
+	"github.com/drornir/better-actions/pkg/shell"
+	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func RunJob(ctx context.Context, jobName string, job *workflow.Job) error {
+func RunJob(ctx context.Context, jobName string, job *yamls.Job) error {
 	oopser := oops.FromContext(ctx).With("jobName", jobName)
 	logger := log.FromContext(ctx).With("jobName", jobName)
 
