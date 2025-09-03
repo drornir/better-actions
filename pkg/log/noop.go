@@ -5,7 +5,9 @@ import (
 	"log/slog"
 )
 
-var NoopSlogger = slog.New(noopSloggerHandler{})
+func NoopSLogger() *slog.Logger {
+	return slog.New(noopSloggerHandler{})
+}
 
 type noopSloggerHandler struct{}
 

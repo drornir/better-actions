@@ -10,7 +10,6 @@ import (
 
 	"github.com/drornir/better-actions/pkg/runtime"
 	"github.com/drornir/better-actions/pkg/yamls"
-	"github.com/drornir/better-actions/workflow"
 )
 
 var workflowCmd = &cobra.Command{
@@ -92,5 +91,5 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 		return err
 	}
 
-	return runtime.RunWorkflow(ctx, &workflow.Workflow{YAML: wf})
+	return runtime.RunWorkflow(ctx, wf)
 }
