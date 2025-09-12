@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/drornir/better-actions/pkg/runtime"
+	"github.com/drornir/better-actions/pkg/runner"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
@@ -91,5 +91,5 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 		return err
 	}
 
-	return runtime.RunWorkflow(ctx, wf)
+	return runner.RunWorkflow(ctx, wf)
 }

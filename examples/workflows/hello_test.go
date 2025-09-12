@@ -3,7 +3,7 @@ package workflows_test
 import (
 	"testing"
 
-	"github.com/drornir/better-actions/pkg/runtime"
+	"github.com/drornir/better-actions/pkg/runner"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
@@ -18,7 +18,7 @@ func TestHelloWorkflow(t *testing.T) {
 		t.Fatal("failed to read workflow", err)
 	}
 
-	if err := runtime.RunWorkflow(ctx, wf); err != nil {
+	if err := runner.RunWorkflow(ctx, wf); err != nil {
 		t.Fatal("failed to run workflow", err)
 	}
 }
