@@ -2,16 +2,11 @@ package runner
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"path"
-	"strings"
 
-	"github.com/kballard/go-shellquote"
 	"github.com/samber/oops"
 
 	"github.com/drornir/better-actions/pkg/log"
-	"github.com/drornir/better-actions/pkg/shell"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
@@ -33,45 +28,43 @@ func RunJob(ctx context.Context, jobName string, job *yamls.Job) error {
 	defer scriptDirRoot.Close()
 
 	for i, step := range job.Steps {
+		stepContext := &StepContext{
+			IndexInJob:     i,
+			TempScriptsDir: scriptDirRoot,
+		}
 		ctxkv := []any{
 			"stepIndex", i,
 			"step.name", step.Name,
 			"step.ID", step.ID,
-			"step.shell", step.Shell,
-			"step.shellCommand", step.ShellCommand(),
-			"step.run", step.Run,
+			// "step.shell", step.Shell,
+			// "step.shellCommand", step.ShellCommand(),
+			// "step.run", step.Run,
 		}
 		oopser := oopser.With(ctxkv...)
 		logger := logger.With(ctxkv...)
 		logger.D(ctx, "running step")
 
-		scriptName := fmt.Sprintf("%d_%s", i, step.ID)
-		if err := scriptDirRoot.WriteFile(scriptName, []byte(step.Run), 0o777); err != nil {
-			return oopser.Wrapf(err, "writing script file")
+		var stepResult StepResult
+		switch {
+		case step.Run != "":
+			sr := &StepRun{
+				Config:  step,
+				Context: stepContext,
+			}
+			res, err := sr.Exec(ctx)
+			if err != nil {
+				return oopser.Wrapf(err, "executing step")
+			}
+			stepResult = res
+		case step.Uses != "":
+			// TODO
+			return oopser.New("'uses' is not implemented")
+		default:
+			return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
 		}
 
-		shellCommand := strings.Replace(step.ShellCommand(), "{0}", path.Join(scriptsDirPath, scriptName), -1)
-
-		binArgs, err := shellquote.Split(shellCommand)
-		if err != nil {
-			return oopser.With("step.shellCommand", shellCommand).Wrapf(err, "parsing shell command")
-		}
-		bin, args := binArgs[0], binArgs[1:]
-		sh, err := shell.NewShell(bin, args...)
-		if err != nil {
-			return oopser.With("bin", bin).With("args", args).Wrapf(err, "initializing shell")
-		}
-		cmd := sh.NewCommand(ctx, shell.CommandOpts{
-			ExtraEnv: nil,
-			Dir:      "",
-			StdOut:   os.Stdout,
-			StdErr:   os.Stderr,
-		})
-
-		logger.D(ctx, "running command", "command.path", cmd.Path, "command.args", cmd.Args)
-		if err := cmd.Run(); err != nil {
-			return oopser.With("command.path", cmd.Path).With("command.args", cmd.Args).Wrapf(err, "running command")
-		}
+		// TODO
+		_ = stepResult
 	}
 
 	return nil
