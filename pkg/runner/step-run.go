@@ -18,7 +18,7 @@ type StepRun struct {
 	Context *StepContext
 }
 
-func (s *StepRun) Exec(ctx context.Context) (StepResult, error) {
+func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	oopser := oops.FromContext(ctx)
 	logger := log.FromContext(ctx)
 

@@ -11,8 +11,8 @@ import (
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func TestHelloWorkflow(t *testing.T) {
-	const filename = "hello.yaml"
+func TestOnlyRuns(t *testing.T) {
+	const filename = "only-runs.yaml"
 	ctx := makeContext(t, "file", filename)
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
