@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path"
 
 	"github.com/samber/oops"
 
@@ -18,7 +19,7 @@ type Job struct {
 	Config    *yamls.Job
 	RunnerEnv map[string]string
 
-	scriptsDirRoot *os.Root
+	jobFilesRoot *os.Root
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -34,7 +35,6 @@ func (j *Job) Run(ctx context.Context) error {
 	defer jobCleanup()
 
 	for i, step := range j.Config.Steps {
-		stepContext := j.newStepContext(i)
 		ctxkv := []any{
 			"stepIndex", i,
 			"step.name", step.Name,
@@ -43,6 +43,10 @@ func (j *Job) Run(ctx context.Context) error {
 		oopser := oopser.With(ctxkv...)
 		logger := logger.With(ctxkv...)
 		logger.D(ctx, "running step")
+		stepContext, err := j.newStepContext(ctx, i, step)
+		if err != nil {
+			return oopser.Wrapf(err, "creating step context")
+		}
 
 		var stepResult StepResult
 		switch {
@@ -78,28 +82,38 @@ func (j *Job) prepareJob(
 
 	cleanup := defers.Chain{}
 
-	scriptsDirPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
+	jobFilesPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
 	if err != nil {
-		return cleanup.Noop, oopser.Wrapf(err, "creating scripts directory")
+		return cleanup.Noop, oopser.Wrapf(err, "creating job files directory")
 	}
-	cleanup.Add(func() { os.RemoveAll(scriptsDirPath) })
-	scriptDirRoot, err := os.OpenRoot(scriptsDirPath)
+	cleanup.Add(func() { os.RemoveAll(jobFilesPath) })
+	jobFilesRoot, err := os.OpenRoot(jobFilesPath)
 	if err != nil {
 		cleanup.Run()
-		return cleanup.Noop, oopser.Wrapf(err, "opening scripts directory")
+		return cleanup.Noop, oopser.Wrapf(err, "opening job files directory")
 	}
-	cleanup.Add(func() { scriptDirRoot.Close() })
+	cleanup.Add(func() { jobFilesRoot.Close() })
 
-	j.scriptsDirRoot = scriptDirRoot
+	j.jobFilesRoot = jobFilesRoot
 
 	return cleanup.Run, nil
 }
 
-func (j *Job) newStepContext(indexInJob int) *StepContext {
-	return &StepContext{
-		Console:        j.Console,
-		IndexInJob:     indexInJob,
-		TempScriptsDir: j.scriptsDirRoot,
-		Env:            j.RunnerEnv,
+func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.Step) (*StepContext, error) {
+	oopser := oops.FromContext(ctx)
+	scriptID := scriptID(indexInJob, step)
+	err := j.jobFilesRoot.MkdirAll(scriptID, 0o755)
+	if err != nil {
+		return nil, oopser.Wrapf(err, "creating step directory")
 	}
+	wd, err := os.OpenRoot(path.Join(j.jobFilesRoot.Name(), scriptID))
+	if err != nil {
+		return nil, oopser.Wrapf(err, "opening step directory")
+	}
+	return &StepContext{
+		Console:    j.Console,
+		IndexInJob: indexInJob,
+		WorkingDir: wd,
+		Env:        j.RunnerEnv,
+	}, nil
 }

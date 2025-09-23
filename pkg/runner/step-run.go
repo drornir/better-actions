@@ -23,7 +23,7 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	logger := log.FromContext(ctx)
 
 	step := s.Config
-	scriptDirRoot := s.Context.TempScriptsDir
+	wd := s.Context.WorkingDir
 
 	ctxkv := []any{
 		"step.shell", step.Shell,
@@ -33,13 +33,14 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	oopser = oopser.With(ctxkv...)
 	logger = logger.With(ctxkv...)
 
-	scriptID := scriptID(s.Context.IndexInJob, step)
-	if err := scriptDirRoot.WriteFile(scriptID, []byte(step.Run), 0o777); err != nil {
-		return StepResult{}, oopser.With("scriptFileID", scriptID).Wrapf(err, "writing script file")
+	const scriptName = "script.sh"
+	if err := wd.WriteFile(scriptName, []byte(step.Run), 0o777); err != nil {
+		return StepResult{}, oopser.With("scriptFile", path.Join(wd.Name(), scriptName)).
+			Wrapf(err, "writing script file")
 	}
 
 	shellCommand := strings.ReplaceAll(step.ShellCommand(), "{0}",
-		shellquote.Join(path.Join(scriptDirRoot.Name(), scriptID)),
+		shellquote.Join(path.Join(wd.Name(), scriptName)),
 	)
 
 	binArgs, err := shellquote.Split(shellCommand)
@@ -51,6 +52,7 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	if err != nil {
 		return StepResult{}, oopser.With("step.shell.bin", bin).With("step.shell.args", args).Wrapf(err, "initializing shell")
 	}
+
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{
 		ExtraEnv: s.Context.Env,
 		Dir:      s.Config.WorkingDirectory,
