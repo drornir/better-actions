@@ -13,9 +13,10 @@ import (
 )
 
 type Job struct {
-	Name    string
-	Console io.Writer
-	Config  *yamls.Job
+	Name      string
+	Console   io.Writer
+	Config    *yamls.Job
+	RunnerEnv map[string]string
 
 	scriptsDirRoot *os.Root
 }
@@ -99,5 +100,6 @@ func (j *Job) newStepContext(indexInJob int) *StepContext {
 		Console:        j.Console,
 		IndexInJob:     indexInJob,
 		TempScriptsDir: j.scriptsDirRoot,
+		Env:            j.RunnerEnv,
 	}
 }

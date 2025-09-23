@@ -16,9 +16,9 @@ func TestOnlyRuns(t *testing.T) {
 	ctx := makeContext(t, "file", filename)
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
-	run := &runner.Runner{
-		Console: console,
-	}
+	run := runner.New(console, runner.EnvFromEnviron([]string{
+		"MY_SPECIAL_ENV_VAR=my special value",
+	}))
 
 	f, err := rootFs.Open(filename)
 	if err != nil {
@@ -33,5 +33,5 @@ func TestOnlyRuns(t *testing.T) {
 		t.Fatal("failed to run workflow", err)
 	}
 
-	assert.Contains(t, consoleBuffer.String(), "Hello World")
+	assert.Contains(t, consoleBuffer.String(), "my special value")
 }

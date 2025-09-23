@@ -16,9 +16,10 @@ func TestHelloWorkflow(t *testing.T) {
 	ctx := makeContext(t, "file", filename)
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
-	run := &runner.Runner{
-		Console: console,
-	}
+	run := runner.New(
+		console,
+		runner.EnvFromEmpty(),
+	)
 
 	f, err := rootFs.Open(filename)
 	if err != nil {

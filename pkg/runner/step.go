@@ -14,6 +14,7 @@ type StepContext struct {
 	Console        io.Writer
 	IndexInJob     int
 	TempScriptsDir *os.Root
+	Env            map[string]string
 }
 
 func scriptID(index int, step *yamls.Step) string {
