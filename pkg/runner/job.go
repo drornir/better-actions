@@ -10,7 +10,7 @@ import (
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func RunJob(ctx context.Context, jobName string, job *yamls.Job) error {
+func (r *Runner) RunJob(ctx context.Context, jobName string, job *yamls.Job) error {
 	oopser := oops.FromContext(ctx).With("jobName", jobName)
 	logger := log.FromContext(ctx).With("jobName", jobName)
 
@@ -29,6 +29,7 @@ func RunJob(ctx context.Context, jobName string, job *yamls.Job) error {
 
 	for i, step := range job.Steps {
 		stepContext := &StepContext{
+			Console:        r.Console,
 			IndexInJob:     i,
 			TempScriptsDir: scriptDirRoot,
 		}

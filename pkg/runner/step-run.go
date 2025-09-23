@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"os"
 	"path"
 	"strings"
 
@@ -55,8 +54,8 @@ func (s *StepRun) Exec(ctx context.Context) (StepResult, error) {
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{
 		ExtraEnv: nil,
 		Dir:      s.Config.WorkingDirectory,
-		StdOut:   os.Stdout,
-		StdErr:   os.Stderr,
+		StdOut:   s.Context.Console,
+		StdErr:   s.Context.Console,
 	})
 
 	logger.D(ctx, "running command", "command.path", cmd.Path, "command.args", cmd.Args)

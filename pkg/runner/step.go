@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/drornir/better-actions/pkg/yamls"
@@ -10,6 +11,7 @@ import (
 type StepResult struct{}
 
 type StepContext struct {
+	Console        io.Writer
 	IndexInJob     int
 	TempScriptsDir *os.Root
 }

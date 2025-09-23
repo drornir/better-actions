@@ -91,5 +91,9 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 		return err
 	}
 
-	return runner.RunWorkflow(ctx, wf)
+	rnr := &runner.Runner{
+		Console: os.Stdout,
+	}
+
+	return rnr.RunWorkflow(ctx, wf)
 }
