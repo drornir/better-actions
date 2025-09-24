@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"io"
+	"maps"
 	"os"
 	"path"
 
@@ -43,6 +44,7 @@ func (j *Job) Run(ctx context.Context) error {
 		oopser := oopser.With(ctxkv...)
 		logger := logger.With(ctxkv...)
 		logger.D(ctx, "running step")
+
 		stepContext, err := j.newStepContext(ctx, i, step)
 		if err != nil {
 			return oopser.Wrapf(err, "creating step context")
@@ -110,10 +112,32 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	if err != nil {
 		return nil, oopser.Wrapf(err, "opening step directory")
 	}
+
+	env := maps.Clone(j.RunnerEnv)
+	if env == nil {
+		env = make(map[string]string)
+	}
+
+	for _, e := range []WFCommandEnvFile{
+		GithubOutput,
+		GithubState,
+		GithubPath,
+		GithubEnv,
+		GithubStepSummary,
+	} {
+		f, err := wd.Create(e.FileName())
+		if err != nil {
+			return nil, oopser.Wrapf(err, "creating file %s", e.FileName())
+		}
+		f.Close()
+		p := path.Join(wd.Name(), e.FileName())
+		env[e.EnvVarName()] = p
+	}
+
 	return &StepContext{
 		Console:    j.Console,
 		IndexInJob: indexInJob,
 		WorkingDir: wd,
-		Env:        j.RunnerEnv,
+		Env:        env,
 	}, nil
 }

@@ -52,7 +52,6 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	if err != nil {
 		return StepResult{}, oopser.With("step.shell.bin", bin).With("step.shell.args", args).Wrapf(err, "initializing shell")
 	}
-
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{
 		ExtraEnv: s.Context.Env,
 		Dir:      s.Config.WorkingDirectory,
