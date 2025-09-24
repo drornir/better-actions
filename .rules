@@ -17,6 +17,7 @@
 - Always accept `context.Context` as the first parameter in functions that do I/O, logging, or long-running operations
 - Pass context through the call chain - never create new background contexts
 - Use context for cancellation, timeouts, and carrying request-scoped values
+- Logger and Oopser should be extract like this: `oopser := oops.FromContext(ctx); logger := log.FromContext(ctx)`
 
 ## Code Style
 - Follow standard Go conventions

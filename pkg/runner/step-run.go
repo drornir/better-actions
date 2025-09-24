@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"errors"
+	"os/exec"
 	"path"
 	"strings"
 
@@ -61,6 +63,13 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 
 	logger.D(ctx, "running command", "command.path", cmd.Path, "command.args", cmd.Args)
 	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return StepResult{
+				Status:     StepStatusFailed,
+				FailReason: exitErr.Error(),
+			}, nil
+		}
 		return StepResult{}, oopser.With("command.path", cmd.Path).With("command.args", cmd.Args).Wrapf(err, "running command")
 	}
 

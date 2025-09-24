@@ -8,7 +8,21 @@ import (
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-type StepResult struct{}
+type StepResult struct {
+	Status     StepStatus
+	FailReason string
+}
+
+type StepStatus string
+
+const (
+	StepStatusSucceeded           StepStatus = "Succeeded"
+	StepStatusSucceededWithIssues StepStatus = "SucceededWithIssues"
+	StepStatusFailed              StepStatus = "Failed"
+	StepStatusCanceled            StepStatus = "Canceled"
+	StepStatusSkipped             StepStatus = "Skipped"
+	StepStatusAbandoned           StepStatus = "Abandoned"
+)
 
 type StepContext struct {
 	Console    io.Writer
