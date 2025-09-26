@@ -17,6 +17,10 @@ type Logger struct {
 	sl *slog.Logger
 }
 
+func (l *Logger) WithLevel(level slog.Level) *Logger {
+	return New(SloggerWithLevel(l.Slogger(), level))
+}
+
 func (l *Logger) T(ctx context.Context, msg string, a ...any) {
 	l.log(ctx, SlogLevelTrace, msg, a...)
 }

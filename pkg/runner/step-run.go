@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"path"
 	"strings"
@@ -67,7 +68,7 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 		if errors.As(err, &exitErr) {
 			return StepResult{
 				Status:     StepStatusFailed,
-				FailReason: exitErr.Error(),
+				FailReason: fmt.Sprintf("%s returned %s", shellquote.Join(cmd.Args...), exitErr.Error()),
 			}, nil
 		}
 		return StepResult{}, oopser.With("command.path", cmd.Path).With("command.args", cmd.Args).Wrapf(err, "running command")

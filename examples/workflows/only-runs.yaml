@@ -6,8 +6,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: print-env
-        run: echo $MY_SPECIAL_ENV_VAR
+        run: |
+          echo $MY_SPECIAL_ENV_VAR
       - name: store to env
-        run: echo 'inline_env_var=inline' >> $GITHUB_ENV
+        run: |
+          set -euo pipefail
+          echo "inline_env_var=$MY_SPECIAL_ENV_VAR" >> $GITHUB_ENV
       - name: print from inline env var
         run: echo value is $inline_env_var

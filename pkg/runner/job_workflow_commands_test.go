@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/drornir/better-actions/pkg/yamls"
 )
 
 func TestProcessWorkflowCommandFilesAll(t *testing.T) {
@@ -50,7 +48,7 @@ func TestProcessWorkflowCommandFilesAll(t *testing.T) {
 		ScriptID: "0_test",
 	}
 
-	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx, &yamls.Step{}))
+	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx))
 
 	require.Equal(t, "bar", job.stepsEnv["FOO"])
 	require.Contains(t, job.stepsPath, "/tmp/bin")

@@ -45,7 +45,7 @@ func (j *Job) Run(ctx context.Context) error {
 		ctxkv := []any{
 			"stepIndex", i,
 			"step.name", step.Name,
-			"step.ID", step.ID,
+			"step.ID", stepID(i, step),
 		}
 		oopser := oopser.With(ctxkv...)
 		logger := logger.With(ctxkv...)
@@ -75,7 +75,13 @@ func (j *Job) Run(ctx context.Context) error {
 			return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
 		}
 
-		if err := j.processWorkflowCommandFiles(ctx, stepContext, step); err != nil {
+		if stepResult.Status == StepStatusFailed {
+			// TODO maybe return this not as an error?
+			return oopser.
+				Wrapf(oops.New(stepResult.FailReason), "step failed")
+		}
+
+		if err := j.processWorkflowCommandFiles(ctx, stepContext); err != nil {
 			return oopser.Wrapf(err, "processing workflow command files")
 		}
 
@@ -119,7 +125,7 @@ func (j *Job) prepareJob(
 
 func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.Step) (*StepContext, error) {
 	oopser := oops.FromContext(ctx)
-	scriptID := scriptID(indexInJob, step)
+	scriptID := stepID(indexInJob, step)
 	err := j.jobFilesRoot.MkdirAll(scriptID, 0o755)
 	if err != nil {
 		return nil, oopser.Wrapf(err, "creating step directory")
@@ -189,7 +195,6 @@ func (j *Job) applyPrependPath(env map[string]string) {
 func (j *Job) processWorkflowCommandFiles(
 	ctx context.Context,
 	stepCtx *StepContext,
-	step *yamls.Step,
 ) error {
 	oopser := oops.FromContext(ctx)
 	logger := log.FromContext(ctx)

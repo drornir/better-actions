@@ -23,15 +23,15 @@ func TestHelloWorkflow(t *testing.T) {
 
 	f, err := rootFs.Open(filename)
 	if err != nil {
-		t.Fatal("failed to open workflow file", err)
+		t.Fatal("failed to open workflow file:", err)
 	}
 	wf, err := yamls.ReadWorkflow(f, false)
 	if err != nil {
-		t.Fatal("failed to read workflow", err)
+		t.Fatal("failed to read workflow:", err)
 	}
 
 	if err := run.RunWorkflow(ctx, wf); err != nil {
-		t.Fatal("failed to run workflow", err)
+		t.Fatal("failed to run workflow:", err)
 	}
 
 	assert.Contains(t, consoleBuffer.String(), "Hello World")
