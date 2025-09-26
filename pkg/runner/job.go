@@ -21,6 +21,7 @@ type Job struct {
 	RunnerEnv map[string]string
 
 	jobFilesRoot *os.Root
+	stepsEnv     map[string]string
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -69,6 +70,10 @@ func (j *Job) Run(ctx context.Context) error {
 			return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
 		}
 
+		if err := j.processStepEnvFile(ctx, stepContext); err != nil {
+			return oopser.Wrapf(err, "processing github env file")
+		}
+
 		// TODO
 		_ = stepResult
 	}
@@ -83,6 +88,8 @@ func (j *Job) prepareJob(
 	oopser := oops.FromContext(ctx)
 
 	cleanup := defers.Chain{}
+
+	j.stepsEnv = make(map[string]string)
 
 	jobFilesPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
 	if err != nil {
@@ -117,6 +124,7 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	if env == nil {
 		env = make(map[string]string)
 	}
+	maps.Copy(env, j.stepsEnv)
 
 	for _, e := range []WFCommandEnvFile{
 		GithubOutput,
@@ -140,4 +148,35 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		WorkingDir: wd,
 		Env:        env,
 	}, nil
+}
+
+func (j *Job) processStepEnvFile(
+	ctx context.Context,
+	stepCtx *StepContext,
+) error {
+	oopser := oops.FromContext(ctx)
+	logger := log.FromContext(ctx)
+	envFile, ok := stepCtx.Env[GithubEnv.EnvVarName()]
+	if !ok || envFile == "" {
+		return nil
+	}
+
+	updates, err := parseEnvFile(envFile)
+	if err != nil {
+		return oopser.With("githubEnvFile", envFile).Wrapf(err, "parsing env file")
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	if j.stepsEnv == nil {
+		j.stepsEnv = make(map[string]string)
+	}
+
+	for key, value := range updates {
+		j.stepsEnv[key] = value
+		logger.D(ctx, "applied env from github env file", "env.name", key)
+	}
+
+	return nil
 }
