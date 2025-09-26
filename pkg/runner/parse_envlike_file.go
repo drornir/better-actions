@@ -8,11 +8,13 @@ import (
 	"strings"
 )
 
-var envCommandBlockedVariables = map[string]struct{}{
-	"NODE_OPTIONS": {},
+var commandBlockedVariables = map[WFCommandEnvFile]map[string]struct{}{
+	GithubEnv: {
+		"NODE_OPTIONS": {},
+	},
 }
 
-func parseEnvFile(path string) (map[string]string, error) {
+func parseCommandKeyValueFile(path string, command WFCommandEnvFile) (map[string]string, error) {
 	if path == "" {
 		return nil, nil
 	}
@@ -29,12 +31,14 @@ func parseEnvFile(path string) (map[string]string, error) {
 		return nil, nil
 	}
 
-	return parseEnvFileContent(string(content))
+	return parseCommandKeyValueContent(string(content), command)
 }
 
-func parseEnvFileContent(content string) (map[string]string, error) {
-	parser := envFileParser{input: content}
+func parseCommandKeyValueContent(content string, command WFCommandEnvFile) (map[string]string, error) {
+	parser := envLikeFileParser{input: content}
 	pairs := make(map[string]string)
+	blocked := commandBlockedVariables[command]
+	commandName := command.EnvVarName()
 
 	for {
 		line, _, ok := parser.readLine()
@@ -55,8 +59,8 @@ func parseEnvFileContent(content string) (map[string]string, error) {
 				return nil, fmt.Errorf("invalid format %q: name must not be empty", line)
 			}
 			value := line[equalsIdx+1:]
-			if _, blocked := envCommandBlockedVariables[key]; blocked {
-				return nil, fmt.Errorf("can't store %s output parameter using '$GITHUB_ENV' command", key)
+			if _, blocked := blocked[key]; blocked {
+				return nil, fmt.Errorf("can't store %s output parameter using '$%s' command", key, commandName)
 			}
 			pairs[key] = value
 
@@ -71,8 +75,8 @@ func parseEnvFileContent(content string) (map[string]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			if _, blocked := envCommandBlockedVariables[key]; blocked {
-				return nil, fmt.Errorf("can't store %s output parameter using '$GITHUB_ENV' command", key)
+			if _, blocked := blocked[key]; blocked {
+				return nil, fmt.Errorf("can't store %s output parameter using '$%s' command", key, commandName)
 			}
 			pairs[key] = value
 
@@ -88,12 +92,12 @@ func parseEnvFileContent(content string) (map[string]string, error) {
 	return pairs, nil
 }
 
-type envFileParser struct {
+type envLikeFileParser struct {
 	input string
 	index int
 }
 
-func (p *envFileParser) readLine() (line string, newline string, ok bool) {
+func (p *envLikeFileParser) readLine() (line string, newline string, ok bool) {
 	if p.index >= len(p.input) {
 		return "", "", false
 	}
@@ -119,7 +123,7 @@ func (p *envFileParser) readLine() (line string, newline string, ok bool) {
 	return line, "", true
 }
 
-func (p *envFileParser) readHereDoc(delimiter string) (string, error) {
+func (p *envLikeFileParser) readHereDoc(delimiter string) (string, error) {
 	var builder strings.Builder
 	var lastNewline string
 	var sawContent bool

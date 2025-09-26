@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/samber/oops"
 
@@ -20,8 +21,12 @@ type Job struct {
 	Config    *yamls.Job
 	RunnerEnv map[string]string
 
-	jobFilesRoot *os.Root
-	stepsEnv     map[string]string
+	jobFilesRoot  *os.Root
+	stepsEnv      map[string]string
+	stepsPath     []string
+	stepOutputs   map[string]map[string]string
+	stepStates    map[string]map[string]string
+	stepSummaries map[string]string
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -70,8 +75,8 @@ func (j *Job) Run(ctx context.Context) error {
 			return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
 		}
 
-		if err := j.processStepEnvFile(ctx, stepContext); err != nil {
-			return oopser.Wrapf(err, "processing github env file")
+		if err := j.processWorkflowCommandFiles(ctx, stepContext, step); err != nil {
+			return oopser.Wrapf(err, "processing workflow command files")
 		}
 
 		// TODO
@@ -90,6 +95,10 @@ func (j *Job) prepareJob(
 	cleanup := defers.Chain{}
 
 	j.stepsEnv = make(map[string]string)
+	j.stepsPath = nil
+	j.stepOutputs = make(map[string]map[string]string)
+	j.stepStates = make(map[string]map[string]string)
+	j.stepSummaries = make(map[string]string)
 
 	jobFilesPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
 	if err != nil {
@@ -125,6 +134,7 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		env = make(map[string]string)
 	}
 	maps.Copy(env, j.stepsEnv)
+	j.applyPrependPath(env)
 
 	for _, e := range []WFCommandEnvFile{
 		GithubOutput,
@@ -147,30 +157,74 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		IndexInJob: indexInJob,
 		WorkingDir: wd,
 		Env:        env,
+		ScriptID:   scriptID,
 	}, nil
 }
 
-func (j *Job) processStepEnvFile(
+func (j *Job) applyPrependPath(env map[string]string) {
+	if len(j.stepsPath) == 0 {
+		return
+	}
+
+	originalPath, ok := env["PATH"]
+	if !ok {
+		originalPath = env["Path"]
+	}
+
+	entries := make([]string, 0, len(j.stepsPath)+1)
+	for i := len(j.stepsPath) - 1; i >= 0; i-- {
+		entries = append(entries, j.stepsPath[i])
+	}
+	if originalPath != "" {
+		entries = append(entries, originalPath)
+	}
+
+	newPath := strings.Join(entries, string(os.PathListSeparator))
+	env["PATH"] = newPath
+	if _, hasPath := env["Path"]; hasPath {
+		env["Path"] = newPath
+	}
+}
+
+func (j *Job) processWorkflowCommandFiles(
 	ctx context.Context,
 	stepCtx *StepContext,
+	step *yamls.Step,
 ) error {
 	oopser := oops.FromContext(ctx)
 	logger := log.FromContext(ctx)
-	envFile, ok := stepCtx.Env[GithubEnv.EnvVarName()]
-	if !ok || envFile == "" {
+
+	if err := j.processEnvCommand(ctx, stepCtx, logger); err != nil {
+		return oopser.Wrapf(err, "processing env command file")
+	}
+	if err := j.processPathCommand(ctx, stepCtx, logger); err != nil {
+		return oopser.Wrapf(err, "processing path command file")
+	}
+	if err := j.processOutputCommand(ctx, stepCtx, logger); err != nil {
+		return oopser.Wrapf(err, "processing output command file")
+	}
+	if err := j.processStateCommand(ctx, stepCtx, logger); err != nil {
+		return oopser.Wrapf(err, "processing state command file")
+	}
+	if err := j.processStepSummaryCommand(ctx, stepCtx, logger); err != nil {
+		return oopser.Wrapf(err, "processing step summary command file")
+	}
+
+	return nil
+}
+
+func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+	filePath, ok := j.commandFilePath(stepCtx, GithubEnv)
+	if !ok {
 		return nil
 	}
 
-	updates, err := parseEnvFile(envFile)
+	updates, err := parseCommandKeyValueFile(filePath, GithubEnv)
 	if err != nil {
-		return oopser.With("githubEnvFile", envFile).Wrapf(err, "parsing env file")
+		return err
 	}
 	if len(updates) == 0 {
 		return nil
-	}
-
-	if j.stepsEnv == nil {
-		j.stepsEnv = make(map[string]string)
 	}
 
 	for key, value := range updates {
@@ -179,4 +233,152 @@ func (j *Job) processStepEnvFile(
 	}
 
 	return nil
+}
+
+func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+	filePath, ok := j.commandFilePath(stepCtx, GithubPath)
+	if !ok {
+		return nil
+	}
+
+	entries, err := parsePathFile(filePath)
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	for _, entry := range entries {
+		j.addPathEntry(entry)
+		logger.D(ctx, "applied path from github path file", "path.entry", entry)
+	}
+
+	return nil
+}
+
+func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+	filePath, ok := j.commandFilePath(stepCtx, GithubOutput)
+	if !ok {
+		return nil
+	}
+
+	updates, err := parseCommandKeyValueFile(filePath, GithubOutput)
+	if err != nil {
+		return err
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	stepKey := stepCtx.ScriptID
+	output := j.stepOutputs[stepKey]
+	if output == nil {
+		output = make(map[string]string)
+		j.stepOutputs[stepKey] = output
+	}
+
+	for key, value := range updates {
+		output[key] = value
+		logger.D(ctx, "captured step output", "step.scriptID", stepKey, "output.name", key)
+	}
+
+	return nil
+}
+
+func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+	filePath, ok := j.commandFilePath(stepCtx, GithubState)
+	if !ok {
+		return nil
+	}
+
+	updates, err := parseCommandKeyValueFile(filePath, GithubState)
+	if err != nil {
+		return err
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	stepKey := stepCtx.ScriptID
+	state := j.stepStates[stepKey]
+	if state == nil {
+		state = make(map[string]string)
+		j.stepStates[stepKey] = state
+	}
+
+	for key, value := range updates {
+		state[key] = value
+		logger.D(ctx, "captured step state", "step.scriptID", stepKey, "state.name", key)
+	}
+
+	return nil
+}
+
+func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+	filePath, ok := j.commandFilePath(stepCtx, GithubStepSummary)
+	if !ok {
+		return nil
+	}
+
+	summary, err := readStepSummary(filePath)
+	if err != nil {
+		return err
+	}
+	if summary == "" {
+		return nil
+	}
+
+	j.stepSummaries[stepCtx.ScriptID] = summary
+	logger.D(ctx, "captured step summary", "step.scriptID", stepCtx.ScriptID)
+	return nil
+}
+
+func (j *Job) commandFilePath(stepCtx *StepContext, command WFCommandEnvFile) (string, bool) {
+	if stepCtx == nil {
+		return "", false
+	}
+	path, ok := stepCtx.Env[command.EnvVarName()]
+	if !ok || path == "" {
+		return "", false
+	}
+	return path, true
+}
+
+func (j *Job) addPathEntry(entry string) {
+	if entry == "" {
+		return
+	}
+
+	for i, existing := range j.stepsPath {
+		if existing == entry {
+			j.stepsPath = append(j.stepsPath[:i], j.stepsPath[i+1:]...)
+			break
+		}
+	}
+
+	j.stepsPath = append(j.stepsPath, entry)
+}
+
+func readStepSummary(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if info.Size() == 0 {
+		return "", nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }

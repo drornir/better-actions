@@ -29,18 +29,21 @@
 - Extract dependencies once per function: `ctx context.Context`, then `logger := log.FromContext(ctx)` and `oopser := oops.FromContext(ctx)`.
 - Pass the received context through call chains; never create `context.Background()` inside workflows or runners.
 - Wrap returned errors with `oops` for context, prefer returning `(value, error)` over `log.Fatal`, and keep messages lowercase (e.g., `failed to parse`).
+- Never use `fmt.Errorf` or `errors.New` directly; always wrap errors with `oops`, even if context is not injected.
+- Always wrap errors that are coming from a 3rd party library with `oops` to provide context and ensure consistent error handling.
 
 ## Testing Guidelines
 
 - Co-locate tests with implementation under `pkg/` or alongside workflow fixtures in `examples/workflows/`.
 - Use subtests (`t.Run("scenario", ...)`) and `testify` assertions to capture intent.
 - Extend example workflows when adding features so automated and manual checks share coverage.
+- Always use table testing, even if you only have one case. This will allow easier expansion
+  of the test later.
 
 ## Commit & Pull Request Guidelines
 
 - Write short, imperative commit subjects (`create workflow command files`).
-- Ensure `go test ./...` and, when workflows change, `scripts/dev.sh` succeed before pushing.
-- PRs should link the motivating issue, note affected workflows, and include CLI output snippets or reproduction steps.
+- Ensure `go test ./...`, formatting, and linting. See settings for linter in `.zed/settings.json` under gopls.
 
 ## Security & Configuration Tips
 

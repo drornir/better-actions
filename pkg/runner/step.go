@@ -29,6 +29,7 @@ type StepContext struct {
 	IndexInJob int
 	WorkingDir *os.Root
 	Env        map[string]string
+	ScriptID   string
 }
 
 func scriptID(index int, step *yamls.Step) string {

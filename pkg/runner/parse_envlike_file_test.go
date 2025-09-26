@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func TestParseEnvFileContent(t *testing.T) {
+func TestParseCommandKeyValueContent(t *testing.T) {
 	tests := []struct {
 		name      string
 		content   string
@@ -62,7 +64,7 @@ func TestParseEnvFileContent(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			pairs, err := parseEnvFileContent(tc.content)
+			pairs, err := parseCommandKeyValueContent(tc.content, GithubEnv)
 			if tc.expectErr != "" {
 				require.EqualError(t, err, tc.expectErr)
 				return
@@ -79,25 +81,35 @@ func TestParseEnvFile(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(path, []byte("FOO=bar\n"), 0o644))
 
-	pairs, err := parseEnvFile(path)
+	pairs, err := parseCommandKeyValueFile(path, GithubEnv)
 	require.NoError(t, err)
 	require.Equal(t, map[string]string{"FOO": "bar"}, pairs)
 
-	emptyPairs, err := parseEnvFile(filepath.Join(dir, "missing.txt"))
+	emptyPairs, err := parseCommandKeyValueFile(filepath.Join(dir, "missing.txt"), GithubEnv)
 	require.NoError(t, err)
 	require.Nil(t, emptyPairs)
 }
 
-func TestProcessStepEnvFile(t *testing.T) {
+func TestProcessWorkflowCommandFilesEnv(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	path := filepath.Join(dir, GithubEnv.FileName())
 	require.NoError(t, os.WriteFile(path, []byte("FOO=bar\n"), 0o644))
 
-	job := &Job{RunnerEnv: map[string]string{"EXISTING": "1"}}
-	stepCtx := &StepContext{Env: map[string]string{GithubEnv.EnvVarName(): path}}
+	job := &Job{
+		RunnerEnv:     map[string]string{"EXISTING": "1"},
+		stepsEnv:      make(map[string]string),
+		stepsPath:     nil,
+		stepOutputs:   make(map[string]map[string]string),
+		stepStates:    make(map[string]map[string]string),
+		stepSummaries: make(map[string]string),
+	}
+	stepCtx := &StepContext{
+		Env:      map[string]string{GithubEnv.EnvVarName(): path},
+		ScriptID: "0_test",
+	}
 
-	require.NoError(t, job.processStepEnvFile(ctx, stepCtx))
+	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx, &yamls.Step{}))
 	require.Equal(t, "1", job.RunnerEnv["EXISTING"])
 	require.Equal(t, "bar", job.stepsEnv["FOO"])
 }
