@@ -2,26 +2,27 @@ package workflows_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/drornir/better-actions/pkg/log"
 	"github.com/drornir/better-actions/pkg/runner"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func TestOnlyRuns(t *testing.T) {
+func TestWorkflowCommands(t *testing.T) {
 	const filename = "only-runs.yaml"
 	ctx := makeContext(t, "file", filename)
-	logger := log.FromContext(ctx).WithLevel(slog.LevelInfo)
-	ctx = logger.WithContext(ctx)
+	// logger := log.FromContext(ctx).WithLevel(slog.LevelInfo)
+	// ctx = logger.WithContext(ctx)
 
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
 	run := runner.New(console, runner.EnvFromEnviron([]string{
+		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		"MY_SPECIAL_ENV_VAR=my special value",
 	}))
 
@@ -39,4 +40,5 @@ func TestOnlyRuns(t *testing.T) {
 	}
 
 	assert.Contains(t, consoleBuffer.String(), "value is my special value")
+	assert.Contains(t, consoleBuffer.String(), "hello from custom_executable")
 }

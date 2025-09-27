@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/samber/oops"
@@ -140,7 +141,7 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		env = make(map[string]string)
 	}
 	maps.Copy(env, j.stepsEnv)
-	j.applyPrependPath(env)
+	j.applyPrependPath(ctx, env)
 
 	for _, e := range []WFCommandEnvFile{
 		GithubOutput,
@@ -167,7 +168,8 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	}, nil
 }
 
-func (j *Job) applyPrependPath(env map[string]string) {
+func (j *Job) applyPrependPath(ctx context.Context, env map[string]string) {
+	logger := log.FromContext(ctx)
 	if len(j.stepsPath) == 0 {
 		return
 	}
@@ -178,8 +180,8 @@ func (j *Job) applyPrependPath(env map[string]string) {
 	}
 
 	entries := make([]string, 0, len(j.stepsPath)+1)
-	for i := len(j.stepsPath) - 1; i >= 0; i-- {
-		entries = append(entries, j.stepsPath[i])
+	for _, pathEntry := range slices.Backward(j.stepsPath) {
+		entries = append(entries, pathEntry)
 	}
 	if originalPath != "" {
 		entries = append(entries, originalPath)
@@ -190,6 +192,10 @@ func (j *Job) applyPrependPath(env map[string]string) {
 	if _, hasPath := env["Path"]; hasPath {
 		env["Path"] = newPath
 	}
+	logger.D(ctx, "applyPrependPath",
+		"fromSteps", strings.Join(j.stepsPath, string(os.PathListSeparator)),
+		"original", originalPath,
+		"newPath", newPath)
 }
 
 func (j *Job) processWorkflowCommandFiles(
@@ -197,28 +203,30 @@ func (j *Job) processWorkflowCommandFiles(
 	stepCtx *StepContext,
 ) error {
 	oopser := oops.FromContext(ctx)
-	logger := log.FromContext(ctx)
 
-	if err := j.processEnvCommand(ctx, stepCtx, logger); err != nil {
+	if err := j.processEnvCommand(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing env command file")
 	}
-	if err := j.processPathCommand(ctx, stepCtx, logger); err != nil {
+	if err := j.processPathCommand(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing path command file")
 	}
-	if err := j.processOutputCommand(ctx, stepCtx, logger); err != nil {
+	if err := j.processOutputCommand(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing output command file")
 	}
-	if err := j.processStateCommand(ctx, stepCtx, logger); err != nil {
+	if err := j.processStateCommand(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing state command file")
 	}
-	if err := j.processStepSummaryCommand(ctx, stepCtx, logger); err != nil {
+	if err := j.processStepSummaryCommand(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing step summary command file")
 	}
 
 	return nil
 }
 
-func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext) error {
+	logger := log.FromContext(ctx)
+	oopser := oops.FromContext(ctx)
+
 	filePath, ok := j.commandFilePath(stepCtx, GithubEnv)
 	if !ok {
 		return nil
@@ -226,7 +234,7 @@ func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext, logge
 
 	updates, err := parseCommandKeyValueFile(filePath, GithubEnv)
 	if err != nil {
-		return err
+		return oopser.Wrapf(err, "parsing env file")
 	}
 	if len(updates) == 0 {
 		return nil
@@ -240,7 +248,10 @@ func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext, logge
 	return nil
 }
 
-func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext) error {
+	logger := log.FromContext(ctx)
+	oopser := oops.FromContext(ctx)
+
 	filePath, ok := j.commandFilePath(stepCtx, GithubPath)
 	if !ok {
 		return nil
@@ -248,7 +259,7 @@ func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext, logg
 
 	entries, err := parsePathFile(filePath)
 	if err != nil {
-		return err
+		return oopser.Wrapf(err, "parsing path file")
 	}
 	if len(entries) == 0 {
 		return nil
@@ -262,7 +273,10 @@ func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext, logg
 	return nil
 }
 
-func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext) error {
+	logger := log.FromContext(ctx)
+	oopser := oops.FromContext(ctx)
+
 	filePath, ok := j.commandFilePath(stepCtx, GithubOutput)
 	if !ok {
 		return nil
@@ -270,7 +284,7 @@ func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext, lo
 
 	updates, err := parseCommandKeyValueFile(filePath, GithubOutput)
 	if err != nil {
-		return err
+		return oopser.Wrapf(err, "parsing output file")
 	}
 	if len(updates) == 0 {
 		return nil
@@ -291,7 +305,10 @@ func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext, lo
 	return nil
 }
 
-func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext) error {
+	logger := log.FromContext(ctx)
+	oopser := oops.FromContext(ctx)
+
 	filePath, ok := j.commandFilePath(stepCtx, GithubState)
 	if !ok {
 		return nil
@@ -299,7 +316,7 @@ func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext, log
 
 	updates, err := parseCommandKeyValueFile(filePath, GithubState)
 	if err != nil {
-		return err
+		return oopser.Wrapf(err, "parsing state file")
 	}
 	if len(updates) == 0 {
 		return nil
@@ -320,7 +337,10 @@ func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext, log
 	return nil
 }
 
-func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContext, logger *log.Logger) error {
+func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContext) error {
+	logger := log.FromContext(ctx)
+	oopser := oops.FromContext(ctx)
+
 	filePath, ok := j.commandFilePath(stepCtx, GithubStepSummary)
 	if !ok {
 		return nil
@@ -328,10 +348,7 @@ func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContex
 
 	summary, err := readStepSummary(filePath)
 	if err != nil {
-		return err
-	}
-	if summary == "" {
-		return nil
+		return oopser.Wrapf(err, "reading step summary")
 	}
 
 	j.stepSummaries[stepCtx.ScriptID] = summary
