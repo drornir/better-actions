@@ -46,7 +46,7 @@ func (j *Job) Run(ctx context.Context) error {
 		ctxkv := []any{
 			"stepIndex", i,
 			"step.name", step.Name,
-			"step.ID", stepID(i, step),
+			"step.ID", makeStepID(i, step),
 		}
 		oopser := oopser.With(ctxkv...)
 		logger := logger.With(ctxkv...)
@@ -77,7 +77,7 @@ func (j *Job) Run(ctx context.Context) error {
 		}
 
 		if stepResult.Status == StepStatusFailed {
-			// TODO maybe return this not as an error?
+			// TODO this step failed but I need to check the conditions on the next steps and possibly move on
 			return oopser.
 				Wrapf(oops.New(stepResult.FailReason), "step failed")
 		}
@@ -85,9 +85,7 @@ func (j *Job) Run(ctx context.Context) error {
 		if err := j.processWorkflowCommandFiles(ctx, stepContext); err != nil {
 			return oopser.Wrapf(err, "processing workflow command files")
 		}
-
 		// TODO
-		_ = stepResult
 	}
 
 	return nil
@@ -126,12 +124,12 @@ func (j *Job) prepareJob(
 
 func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.Step) (*StepContext, error) {
 	oopser := oops.FromContext(ctx)
-	scriptID := stepID(indexInJob, step)
-	err := j.jobFilesRoot.MkdirAll(scriptID, 0o755)
+	stpID := makeStepID(indexInJob, step)
+	err := j.jobFilesRoot.MkdirAll(stpID, 0o755)
 	if err != nil {
 		return nil, oopser.Wrapf(err, "creating step directory")
 	}
-	wd, err := os.OpenRoot(path.Join(j.jobFilesRoot.Name(), scriptID))
+	wd, err := os.OpenRoot(path.Join(j.jobFilesRoot.Name(), stpID))
 	if err != nil {
 		return nil, oopser.Wrapf(err, "opening step directory")
 	}
@@ -160,11 +158,11 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	}
 
 	return &StepContext{
+		StepID:     stpID,
 		Console:    j.Console,
 		IndexInJob: indexInJob,
 		WorkingDir: wd,
 		Env:        env,
-		ScriptID:   scriptID,
 	}, nil
 }
 
@@ -290,7 +288,7 @@ func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext) er
 		return nil
 	}
 
-	stepKey := stepCtx.ScriptID
+	stepKey := stepCtx.StepID
 	output := j.stepOutputs[stepKey]
 	if output == nil {
 		output = make(map[string]string)
@@ -322,7 +320,7 @@ func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext) err
 		return nil
 	}
 
-	stepKey := stepCtx.ScriptID
+	stepKey := stepCtx.StepID
 	state := j.stepStates[stepKey]
 	if state == nil {
 		state = make(map[string]string)
@@ -351,8 +349,8 @@ func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContex
 		return oopser.Wrapf(err, "reading step summary")
 	}
 
-	j.stepSummaries[stepCtx.ScriptID] = summary
-	logger.D(ctx, "captured step summary", "step.scriptID", stepCtx.ScriptID)
+	j.stepSummaries[stepCtx.StepID] = summary
+	logger.D(ctx, "captured step summary", "step.scriptID", stepCtx.StepID)
 	return nil
 }
 

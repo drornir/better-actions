@@ -31,10 +31,10 @@ type StepContext struct {
 	IndexInJob int
 	WorkingDir *os.Root
 	Env        map[string]string
-	ScriptID   string
+	StepID     string
 }
 
-func stepID(index int, step *yamls.Step) string {
+func makeStepID(index int, step *yamls.Step) string {
 	scriptName := step.ID
 	if scriptName == "" {
 		scriptName = step.Name

@@ -45,7 +45,7 @@ func TestProcessWorkflowCommandFilesAll(t *testing.T) {
 			GithubState.EnvVarName():       statePath,
 			GithubStepSummary.EnvVarName(): summaryPath,
 		},
-		ScriptID: "0_test",
+		StepID: "0_test",
 	}
 
 	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx))

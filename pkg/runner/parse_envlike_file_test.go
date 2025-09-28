@@ -103,8 +103,8 @@ func TestProcessWorkflowCommandFilesEnv(t *testing.T) {
 		stepSummaries: make(map[string]string),
 	}
 	stepCtx := &StepContext{
-		Env:      map[string]string{GithubEnv.EnvVarName(): path},
-		ScriptID: "0_test",
+		Env:    map[string]string{GithubEnv.EnvVarName(): path},
+		StepID: "0_test",
 	}
 
 	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx))

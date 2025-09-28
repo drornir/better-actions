@@ -74,5 +74,7 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 		return StepResult{}, oopser.With("command.path", cmd.Path).With("command.args", cmd.Args).Wrapf(err, "running command")
 	}
 
-	return StepResult{}, nil
+	return StepResult{
+		Status: StepStatusSucceeded,
+	}, nil
 }
