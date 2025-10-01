@@ -16,14 +16,14 @@ import (
 //go:embed *.yaml
 var rootFs embed.FS
 
-func makeContext(t *testing.T, logAttrs ...any) context.Context {
+func makeContext(t *testing.T, logLevel slog.Level, logAttrs ...any) context.Context {
 	ctx := t.Context()
 	ctx = log.New(slog.New(slog.NewTextHandler(
 		t.Output(),
 		&slog.HandlerOptions{
-			Level: slog.LevelDebug,
+			Level: logLevel,
 		})),
-	).With(logAttrs...).WithContext(ctx)
+	).With(logAttrs...).ContextWithLogger(ctx)
 
 	return ctx
 }

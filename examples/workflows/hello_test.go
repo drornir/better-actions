@@ -3,6 +3,7 @@ package workflows_test
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 
 func TestHelloWorkflow(t *testing.T) {
 	const filename = "hello.yaml"
-	ctx := makeContext(t, "file", filename)
+	ctx := makeContext(t, slog.LevelDebug, "file", filename)
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
 	run := runner.New(

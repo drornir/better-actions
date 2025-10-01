@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -15,9 +16,7 @@ import (
 
 func TestWorkflowCommands(t *testing.T) {
 	const filename = "only-runs.yaml"
-	ctx := makeContext(t, "file", filename)
-	// logger := log.FromContext(ctx).WithLevel(slog.LevelInfo)
-	// ctx = logger.WithContext(ctx)
+	ctx := makeContext(t, slog.LevelDebug, "file", filename)
 
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
