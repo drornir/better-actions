@@ -7,13 +7,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"html"
 	"io"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unicode"
 
 	"github.com/samber/oops"
 
@@ -166,70 +163,13 @@ func (r *StepOutputInterpreter) processLines(ctx context.Context) {
 	ctx = log.FromContext(ctx).With(ctxkv...).ContextWithLogger(ctx)
 
 	for line := range concurrency.ClosedOrDone(r.linesChan, ctx) {
-		wfcmd, ok := r.parseCommand(ctx, line)
+		wfcmd, ok := parseWorkflowCommand(ctx, line)
 		if ok {
 			r.backend.ExecuteCommand(ctx, wfcmd)
 			continue
 		}
 		r.backend.Print(ctx, line)
 	}
-}
-
-func (r *StepOutputInterpreter) parseCommand(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
-	line = strings.TrimFunc(line, unicode.IsSpace) // also removes \r?\n from the end
-
-	if strings.HasPrefix(line, "::") {
-		return r.parseCommandV2(ctx, line)
-	} else if cmdStart := strings.Index(line, "##["); cmdStart >= 0 {
-		line = line[cmdStart:]
-		return r.parseCommandV1(ctx, line)
-	} else {
-		return ParsedWorkflowCommand{}, false
-	}
-}
-
-// parseCommandV2 parses a command line in the format "::command key=value key=value::data". This is the
-// GitHub Actions syntax that is documented and supported
-func (r *StepOutputInterpreter) parseCommandV2(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
-	var wfcmd ParsedWorkflowCommand
-	if !strings.HasPrefix(line, "::") {
-		return wfcmd, false
-	}
-	line = line[len("::"):]
-	var header string
-	{
-		headerEndIndex := strings.Index(line, "::")
-		if headerEndIndex == -1 {
-			return wfcmd, false
-		}
-		header = line[:headerEndIndex]
-		data := line[headerEndIndex+len("::"):]
-		wfcmd.Data = html.UnescapeString(data)
-	}
-
-	var propsStr string
-	{
-		firstSpaceIndex := strings.Index(header, " ")
-
-		var commandStr string
-		if firstSpaceIndex == -1 {
-			commandStr = header
-		} else {
-			commandStr = header[:firstSpaceIndex]
-			propsStr = header[firstSpaceIndex:]
-		}
-		c, err := ParseWorkflowCommandName(commandStr)
-		if err != nil {
-			return wfcmd, false
-		}
-		wfcmd.Command = c
-	}
-}
-
-// parseCommandV1 parses a command line in the format "##[command key=value; key=value]data". This is the
-// AzureDevOps syntax that is deprecated but still supported.
-func (r *StepOutputInterpreter) parseCommandV1(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
-	panic("parseCommandV1 not implemented")
 }
 
 func (r *StepOutputInterpreter) Err() error {

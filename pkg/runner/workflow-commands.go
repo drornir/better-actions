@@ -5,8 +5,12 @@ package runner
 //go:generate go tool go-enum
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"unicode"
+
+	"github.com/drornir/better-actions/pkg/log"
 )
 
 type WFCommandEnvFile string
@@ -33,105 +37,175 @@ type ParsedWorkflowCommand struct {
 	Data    string
 }
 
+// WorkflowCommandName is an enum for all the workflow action commands to support
 // ENUM(debug)
 type WorkflowCommandName string
 
-// type TextCommandsReader struct {
-// 	incoming     *bytes.Buffer
-// 	downstream   io.Writer
-// 	commandsChan chan UnparsedCommand
+func parseWorkflowCommand(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
+	line = strings.TrimFunc(line, unicode.IsSpace) // also removes \r?\n from the end
 
-// 	err     error
-// 	errLock sync.Mutex
-// 	scanner *bufio.Scanner
-// }
+	if strings.HasPrefix(line, "::") {
+		return parseWorkflowCommandV2(ctx, line)
+	} else if cmdStart := strings.Index(line, "##["); cmdStart >= 0 {
+		line = line[cmdStart:]
+		return parseWorkflowCommandV1(ctx, line)
+	} else {
+		return ParsedWorkflowCommand{}, false
+	}
+}
 
-// type UnparsedCommand struct {
-// 	command string
-// 	args    []string
-// 	opts    map[string]string
-// }
+// parseWorkflowCommandV2 parses a command line in the format "::command key=value key=value::data". This is the
+// GitHub Actions syntax that is documented and supported
+func parseWorkflowCommandV2(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
+	logger := log.FromContext(ctx).With("function", "parseCommandV2")
 
-// func NewTextCommandsReader(downstream io.Writer) *TextCommandsReader {
-// 	var incoming bytes.Buffer
-// 	scanner := bufio.NewScanner(&incoming)
+	var wfcmd ParsedWorkflowCommand
+	line = strings.TrimLeft(line, " ")
+	if !strings.HasPrefix(line, "::") {
+		return wfcmd, false
+	}
+	line = line[len("::"):]
+	var header, dataRaw string
+	{
+		headerEndIndex := strings.Index(line, "::")
+		if headerEndIndex == -1 {
+			return wfcmd, false
+		}
+		header = line[:headerEndIndex]
+		dataRaw = line[headerEndIndex+len("::"):]
+	}
 
-// 	return &TextCommandsReader{
-// 		incoming:     &incoming,
-// 		downstream:   downstream,
-// 		commandsChan: make(chan UnparsedCommand, 0),
+	wfcmd.Data = unescape(escapingDataMapping, dataRaw)
 
-// 		scanner: scanner,
-// 	}
-// }
+	var propsStr string
+	{
+		firstSpaceIndex := strings.Index(header, " ")
 
-// func (r *TextCommandsReader) Start(ctx context.Context) (stopper func()) {
-// 	oopser := oops.FromContext(ctx)
-// 	logger := log.FromContext(ctx)
+		var commandStr string
+		if firstSpaceIndex == -1 {
+			commandStr = header
+		} else {
+			commandStr = header[:firstSpaceIndex]
+			propsStr = header[firstSpaceIndex:]
+		}
+		c, err := ParseWorkflowCommandName(commandStr)
+		if err != nil {
+			logger.W(ctx, "line starts with '::"+commandStr+"' which looks like a command, but is not a known command name", "command", commandStr)
+			return wfcmd, false
+		}
+		wfcmd.Command = c
+	}
 
-// 	linesChan := make(chan string, 128)
+	logger = logger.With("command", wfcmd.Command)
 
-// 	stopChan := make(chan struct{}, 1)
-// 	stopper = func() {
-// 		logger.D(ctx, "stopping text commands reader")
-// 		stopChan <- struct{}{}
-// 	}
+	propsStr = strings.TrimLeft(propsStr, " ")
+	for propsStr != "" {
+		endOfPropIndex := strings.Index(propsStr, ",")
+		if endOfPropIndex == -1 {
+			endOfPropIndex = len(propsStr)
+		}
+		prop := propsStr[:endOfPropIndex]
+		propsStr = propsStr[min(endOfPropIndex+1, len(propsStr)):]
+		if prop == "" {
+			continue
+		}
+		logger := logger.With("property", prop)
+		keyValue := strings.SplitN(prop, "=", 2)
+		if len(keyValue) != 2 {
+			logger.W(ctx, "property '"+propsStr+"' ignored because it does not contain '='")
+			continue
+		}
+		if keyValue[1] == "" {
+			logger.W(ctx, "property '"+propsStr+"' ignored because value is empty")
+			continue
+		}
+		if wfcmd.Props == nil {
+			wfcmd.Props = make(map[string]string)
+		}
+		wfcmd.Props[keyValue[0]] = unescape(escapingPropertyMapping, keyValue[1])
+	}
 
-// 	go func() {
-// 		defer close(r.commandsChan)
-// 		for {
-// 			select {
-// 			case <-ctx.Done():
-// 				r.errLock.Lock()
-// 				r.err = oopser.Wrapf(ctx.Err(), "context was done")
-// 				r.errLock.Unlock()
-// 				return
-// 			case <-stopChan:
-// 				return
-// 			case line := <-linesChan:
-// 				logger.D(ctx, "read line", "lineStart", line[:min(len(line), 80)])
-// 				unparsed, ok := r.tryParseCommand(line)
-// 				if ok {
-// 					r.commandsChan <- unparsed
-// 				}
-// 				_, err := r.downstream.Write([]byte(line))
-// 				if err != nil {
-// 					r.errLock.Lock()
-// 					r.err = oopser.Wrapf(err, "error writing line")
-// 					r.errLock.Unlock()
-// 				}
+	return wfcmd, true
+}
 
-// 			default:
-// 				line, err := r.incoming.ReadString('\n')
-// 				if err != nil {
-// 					if err != io.EOF {
-// 						r.errLock.Lock()
-// 						r.err = oopser.Wrapf(err, "error reading line")
-// 						r.errLock.Unlock()
-// 					} else {
-// 						logger.D(ctx, "EOF reached")
-// 					}
-// 					linesChan <- line
-// 					close(linesChan)
-// 					return
-// 				}
-// 			}
-// 		}
-// 	}()
-// 	return stopper
-// }
+// parseWorkflowCommandV1 parses a command line in the format "##[command key=value; key=value]data". This is the
+// AzureDevOps syntax that is deprecated but still supported.
+func parseWorkflowCommandV1(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
+	logger := log.FromContext(ctx).With("function", "parseCommandV1")
 
-// // Write implements io.Writer.
-// func (r *TextCommandsReader) Write(p []byte) (n int, err error) {
-// 	r.errLock.Lock()
-// 	if r.err != nil {
-// 		defer r.errLock.Unlock()
-// 		return 0, r.err
-// 	}
-// 	r.errLock.Unlock()
-// 	return r.incoming.Write(p)
-// }
+	var wfcmd ParsedWorkflowCommand
 
-// func (r *TextCommandsReader) CommandsChan() <-chan UnparsedCommand {
-// 	return r.commandsChan
-// }
+	// V1 format allows the command to appear anywhere in the line after prefix text
+	// Find the start of the command
+	cmdStart := strings.Index(line, "##[")
+	if cmdStart == -1 {
+		return wfcmd, false
+	}
+	line = line[cmdStart:]
+
+	if !strings.HasPrefix(line, "##[") {
+		return wfcmd, false
+	}
+	line = line[len("##["):]
+
+	// Find the closing bracket
+	headerEndIndex := strings.Index(line, "]")
+	if headerEndIndex == -1 {
+		return wfcmd, false
+	}
+
+	header := line[:headerEndIndex]
+	dataRaw := line[headerEndIndex+len("]"):]
+
+	wfcmd.Data = unescape(escapingLegacyMapping, dataRaw)
+
+	var propsStr string
+	{
+		firstSpaceIndex := strings.Index(header, " ")
+
+		var commandStr string
+		if firstSpaceIndex == -1 {
+			commandStr = header
+		} else {
+			commandStr = header[:firstSpaceIndex]
+			propsStr = header[firstSpaceIndex:]
+		}
+		c, err := ParseWorkflowCommandName(commandStr)
+		if err != nil {
+			logger.W(ctx, "line starts with '##["+commandStr+"' which looks like a command, but is not a known command name", "command", commandStr)
+			return wfcmd, false
+		}
+		wfcmd.Command = c
+	}
+
+	logger = logger.With("command", wfcmd.Command)
+
+	propsStr = strings.TrimLeft(propsStr, " ")
+	for propsStr != "" {
+		endOfPropIndex := strings.Index(propsStr, ";")
+		if endOfPropIndex == -1 {
+			endOfPropIndex = len(propsStr)
+		}
+		prop := propsStr[:endOfPropIndex]
+		propsStr = propsStr[min(endOfPropIndex+1, len(propsStr)):]
+		if prop == "" {
+			continue
+		}
+		logger := logger.With("property", prop)
+		keyValue := strings.SplitN(prop, "=", 2)
+		if len(keyValue) != 2 {
+			logger.W(ctx, "property '"+prop+"' ignored because it does not contain '='")
+			continue
+		}
+		if keyValue[1] == "" {
+			logger.W(ctx, "property '"+prop+"' ignored because value is empty")
+			continue
+		}
+		if wfcmd.Props == nil {
+			wfcmd.Props = make(map[string]string)
+		}
+		wfcmd.Props[keyValue[0]] = unescape(escapingLegacyMapping, keyValue[1])
+	}
+
+	return wfcmd, true
+}

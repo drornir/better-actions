@@ -15,7 +15,7 @@ import (
 )
 
 func TestWorkflowCommands(t *testing.T) {
-	const filename = "only-runs.yaml"
+	const filename = "workflow-commands.yaml"
 	ctx := makeContext(t, slog.LevelDebug, "file", filename)
 
 	consoleBuffer := &bytes.Buffer{}
