@@ -13,6 +13,10 @@ import (
 	"github.com/drornir/better-actions/pkg/log"
 )
 
+// WorkflowCommandName is an enum for all the workflow action commands to support
+// ENUM(set-env, set-output, save-state, add-mask, add-path, add-matcher, remove-matcher, debug, warning, error, notice, group, endgroup, echo)
+type WorkflowCommandName string
+
 type WFCommandEnvFile string
 
 const (
@@ -36,10 +40,6 @@ type ParsedWorkflowCommand struct {
 	Props   map[string]string
 	Data    string
 }
-
-// WorkflowCommandName is an enum for all the workflow action commands to support
-// ENUM(set-env, set-output, save-state, add-mask, add-path, add-matcher, remove-matcher, debug, warning, error, notice, group, endgroup, echo)
-type WorkflowCommandName string
 
 func parseWorkflowCommand(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
 	line = strings.TrimFunc(line, unicode.IsSpace) // also removes \r?\n from the end

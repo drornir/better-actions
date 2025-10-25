@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -28,6 +29,9 @@ type Job struct {
 	stepOutputs   map[string]map[string]string
 	stepStates    map[string]map[string]string
 	stepSummaries map[string]string
+
+	sensitiveStrings []string
+	sensitiveRegexes []regexp.Regexp
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -82,7 +86,7 @@ func (j *Job) Run(ctx context.Context) error {
 				Wrapf(oops.New(stepResult.FailReason), "step failed")
 		}
 
-		if err := j.processWorkflowCommandFiles(ctx, stepContext); err != nil {
+		if err := j.loadWFCmdFilesAfterStep(ctx, stepContext); err != nil {
 			return oopser.Wrapf(err, "processing workflow command files")
 		}
 		// TODO
@@ -196,32 +200,32 @@ func (j *Job) applyPrependPath(ctx context.Context, env map[string]string) {
 		"newPath", newPath)
 }
 
-func (j *Job) processWorkflowCommandFiles(
+func (j *Job) loadWFCmdFilesAfterStep(
 	ctx context.Context,
 	stepCtx *StepContext,
 ) error {
-	oopser := oops.FromContext(ctx)
+	oopser := oops.FromContext(ctx).With("job_life_cycle", "loadWFCmdFilesAfterStep")
 
-	if err := j.processEnvCommand(ctx, stepCtx); err != nil {
+	if err := j.loadEnvWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing env command file")
 	}
-	if err := j.processPathCommand(ctx, stepCtx); err != nil {
+	if err := j.loadPathWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing path command file")
 	}
-	if err := j.processOutputCommand(ctx, stepCtx); err != nil {
+	if err := j.loadOutputWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing output command file")
 	}
-	if err := j.processStateCommand(ctx, stepCtx); err != nil {
+	if err := j.loadStateWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing state command file")
 	}
-	if err := j.processStepSummaryCommand(ctx, stepCtx); err != nil {
+	if err := j.loadStepSummaryWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing step summary command file")
 	}
 
 	return nil
 }
 
-func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext) error {
+func (j *Job) loadEnvWfCmdFile(ctx context.Context, stepCtx *StepContext) error {
 	logger := log.FromContext(ctx)
 	oopser := oops.FromContext(ctx)
 
@@ -234,9 +238,6 @@ func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext) error
 	if err != nil {
 		return oopser.Wrapf(err, "parsing env file")
 	}
-	if len(updates) == 0 {
-		return nil
-	}
 
 	for key, value := range updates {
 		j.stepsEnv[key] = value
@@ -246,7 +247,7 @@ func (j *Job) processEnvCommand(ctx context.Context, stepCtx *StepContext) error
 	return nil
 }
 
-func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext) error {
+func (j *Job) loadPathWfCmdFile(ctx context.Context, stepCtx *StepContext) error {
 	logger := log.FromContext(ctx)
 	oopser := oops.FromContext(ctx)
 
@@ -271,7 +272,7 @@ func (j *Job) processPathCommand(ctx context.Context, stepCtx *StepContext) erro
 	return nil
 }
 
-func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext) error {
+func (j *Job) loadOutputWfCmdFile(ctx context.Context, stepCtx *StepContext) error {
 	logger := log.FromContext(ctx)
 	oopser := oops.FromContext(ctx)
 
@@ -303,7 +304,7 @@ func (j *Job) processOutputCommand(ctx context.Context, stepCtx *StepContext) er
 	return nil
 }
 
-func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext) error {
+func (j *Job) loadStateWfCmdFile(ctx context.Context, stepCtx *StepContext) error {
 	logger := log.FromContext(ctx)
 	oopser := oops.FromContext(ctx)
 
@@ -335,7 +336,7 @@ func (j *Job) processStateCommand(ctx context.Context, stepCtx *StepContext) err
 	return nil
 }
 
-func (j *Job) processStepSummaryCommand(ctx context.Context, stepCtx *StepContext) error {
+func (j *Job) loadStepSummaryWfCmdFile(ctx context.Context, stepCtx *StepContext) error {
 	logger := log.FromContext(ctx)
 	oopser := oops.FromContext(ctx)
 

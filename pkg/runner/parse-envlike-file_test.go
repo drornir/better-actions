@@ -107,7 +107,7 @@ func TestProcessWorkflowCommandFilesEnv(t *testing.T) {
 		StepID: "0_test",
 	}
 
-	require.NoError(t, job.processWorkflowCommandFiles(ctx, stepCtx))
+	require.NoError(t, job.loadWFCmdFilesAfterStep(ctx, stepCtx))
 	require.Equal(t, "1", job.RunnerEnv["EXISTING"])
 	require.Equal(t, "bar", job.stepsEnv["FOO"])
 }

@@ -18,15 +18,15 @@ import (
 	"github.com/drornir/better-actions/pkg/log"
 )
 
-type InterpreterBackend interface {
+type StepOutputEvaluator interface {
 	ExecuteCommand(ctx context.Context, command ParsedWorkflowCommand)
 	Print(ctx context.Context, text string)
 }
 
-type StepOutputInterpreter struct {
+type StepOutputReader struct {
 	stepOutput     *bytes.Buffer
 	stepOutputLock sync.Mutex
-	backend        InterpreterBackend
+	backend        StepOutputEvaluator
 
 	linesChan  chan string
 	writesChan chan struct{}
@@ -38,14 +38,14 @@ type StepOutputInterpreter struct {
 	errLock    sync.RWMutex
 }
 
-func NewStepOutputInterpreter(backend InterpreterBackend) *StepOutputInterpreter {
+func NewStepOutputInterpreter(backend StepOutputEvaluator) *StepOutputReader {
 	var rw bytes.Buffer
 
 	writesChan := make(chan struct{}, 128)
 	stopChan := make(chan struct{}, 1)
 	doneChan := make(chan struct{}, 1)
 
-	r := &StepOutputInterpreter{
+	r := &StepOutputReader{
 		stepOutput: &rw,
 		backend:    backend,
 		linesChan:  make(chan string, 4096),
@@ -57,12 +57,12 @@ func NewStepOutputInterpreter(backend InterpreterBackend) *StepOutputInterpreter
 	return r
 }
 
-func (r *StepOutputInterpreter) Start(ctx context.Context) (stopper func()) {
+func (r *StepOutputReader) Start(ctx context.Context) (stopper func()) {
 	// oopser := oops.FromContext(ctx)
 	logger := log.FromContext(ctx)
 
 	stopper = func() {
-		logger.D(ctx, "stopping step output interpreter")
+		logger.D(ctx, "stopping step output reader")
 		r.stopScan.Store(true)
 		r.stopChan <- struct{}{}
 	}
@@ -75,14 +75,14 @@ func (r *StepOutputInterpreter) Start(ctx context.Context) (stopper func()) {
 }
 
 // Write implements io.Writer so it can read the step output
-func (r *StepOutputInterpreter) Write(p []byte) (n int, err error) {
+func (r *StepOutputReader) Write(p []byte) (n int, err error) {
 	r.stepOutputLock.Lock()
 	defer r.stepOutputLock.Unlock()
 	return r.stepOutput.Write(p)
 }
 
-func (r *StepOutputInterpreter) readLines(ctx context.Context) {
-	ctxkv := []any{"output_interpreter_worker", "read_step_output"}
+func (r *StepOutputReader) readLines(ctx context.Context) {
+	ctxkv := []any{"output_reader_worker", "read_step_output"}
 	oopser := oops.FromContext(ctx).With(ctxkv...)
 	logger := log.FromContext(ctx).With(ctxkv...)
 
@@ -157,8 +157,8 @@ func (r *StepOutputInterpreter) readLines(ctx context.Context) {
 	}
 }
 
-func (r *StepOutputInterpreter) processLines(ctx context.Context) {
-	ctxkv := []any{"output_interpreter_worker", "process_lines"}
+func (r *StepOutputReader) processLines(ctx context.Context) {
+	ctxkv := []any{"output_reader_worker", "process_lines"}
 	ctx = oops.WithBuilder(ctx, oops.FromContext(ctx).With(ctxkv...))
 	ctx = log.FromContext(ctx).With(ctxkv...).ContextWithLogger(ctx)
 
@@ -172,13 +172,13 @@ func (r *StepOutputInterpreter) processLines(ctx context.Context) {
 	}
 }
 
-func (r *StepOutputInterpreter) Err() error {
+func (r *StepOutputReader) Err() error {
 	r.errLock.RLock()
 	defer r.errLock.RUnlock()
 	return r.err
 }
 
-func (r *StepOutputInterpreter) setErr(err error) {
+func (r *StepOutputReader) setErr(err error) {
 	r.errLock.Lock()
 	defer r.errLock.Unlock()
 	if r.err == nil {
