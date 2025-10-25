@@ -38,7 +38,7 @@ type ParsedWorkflowCommand struct {
 }
 
 // WorkflowCommandName is an enum for all the workflow action commands to support
-// ENUM(debug)
+// ENUM(set-env, set-output, save-state, add-mask, add-path, add-matcher, remove-matcher, debug, warning, error, notice, group, endgroup, echo)
 type WorkflowCommandName string
 
 func parseWorkflowCommand(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {

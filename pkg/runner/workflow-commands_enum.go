@@ -11,8 +11,34 @@ import (
 )
 
 const (
+	// WorkflowCommandNameSetEnv is a WorkflowCommandName of type set-env.
+	WorkflowCommandNameSetEnv WorkflowCommandName = "set-env"
+	// WorkflowCommandNameSetOutput is a WorkflowCommandName of type set-output.
+	WorkflowCommandNameSetOutput WorkflowCommandName = "set-output"
+	// WorkflowCommandNameSaveState is a WorkflowCommandName of type save-state.
+	WorkflowCommandNameSaveState WorkflowCommandName = "save-state"
+	// WorkflowCommandNameAddMask is a WorkflowCommandName of type add-mask.
+	WorkflowCommandNameAddMask WorkflowCommandName = "add-mask"
+	// WorkflowCommandNameAddPath is a WorkflowCommandName of type add-path.
+	WorkflowCommandNameAddPath WorkflowCommandName = "add-path"
+	// WorkflowCommandNameAddMatcher is a WorkflowCommandName of type add-matcher.
+	WorkflowCommandNameAddMatcher WorkflowCommandName = "add-matcher"
+	// WorkflowCommandNameRemoveMatcher is a WorkflowCommandName of type remove-matcher.
+	WorkflowCommandNameRemoveMatcher WorkflowCommandName = "remove-matcher"
 	// WorkflowCommandNameDebug is a WorkflowCommandName of type debug.
 	WorkflowCommandNameDebug WorkflowCommandName = "debug"
+	// WorkflowCommandNameWarning is a WorkflowCommandName of type warning.
+	WorkflowCommandNameWarning WorkflowCommandName = "warning"
+	// WorkflowCommandNameError is a WorkflowCommandName of type error.
+	WorkflowCommandNameError WorkflowCommandName = "error"
+	// WorkflowCommandNameNotice is a WorkflowCommandName of type notice.
+	WorkflowCommandNameNotice WorkflowCommandName = "notice"
+	// WorkflowCommandNameGroup is a WorkflowCommandName of type group.
+	WorkflowCommandNameGroup WorkflowCommandName = "group"
+	// WorkflowCommandNameEndgroup is a WorkflowCommandName of type endgroup.
+	WorkflowCommandNameEndgroup WorkflowCommandName = "endgroup"
+	// WorkflowCommandNameEcho is a WorkflowCommandName of type echo.
+	WorkflowCommandNameEcho WorkflowCommandName = "echo"
 )
 
 var ErrInvalidWorkflowCommandName = errors.New("not a valid WorkflowCommandName")
@@ -30,7 +56,20 @@ func (x WorkflowCommandName) IsValid() bool {
 }
 
 var _WorkflowCommandNameValue = map[string]WorkflowCommandName{
-	"debug": WorkflowCommandNameDebug,
+	"set-env":        WorkflowCommandNameSetEnv,
+	"set-output":     WorkflowCommandNameSetOutput,
+	"save-state":     WorkflowCommandNameSaveState,
+	"add-mask":       WorkflowCommandNameAddMask,
+	"add-path":       WorkflowCommandNameAddPath,
+	"add-matcher":    WorkflowCommandNameAddMatcher,
+	"remove-matcher": WorkflowCommandNameRemoveMatcher,
+	"debug":          WorkflowCommandNameDebug,
+	"warning":        WorkflowCommandNameWarning,
+	"error":          WorkflowCommandNameError,
+	"notice":         WorkflowCommandNameNotice,
+	"group":          WorkflowCommandNameGroup,
+	"endgroup":       WorkflowCommandNameEndgroup,
+	"echo":           WorkflowCommandNameEcho,
 }
 
 // ParseWorkflowCommandName attempts to convert a string to a WorkflowCommandName.
