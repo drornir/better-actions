@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/samber/oops"
 
@@ -18,12 +19,15 @@ import (
 )
 
 type Job struct {
-	Name      string
-	Console   io.Writer
-	Config    *yamls.Job
-	RunnerEnv map[string]string
+	Name         string
+	Console      io.Writer
+	Config       *yamls.Job
+	RunnerEnv    map[string]string
+	jobFilesRoot *os.Root
 
-	jobFilesRoot  *os.Root
+	// internalStateLock to sync maps and lists below
+	internalStateLock sync.RWMutex
+
 	stepsEnv      map[string]string
 	stepsPath     []string
 	stepOutputs   map[string]map[string]string
@@ -142,7 +146,9 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	if env == nil {
 		env = make(map[string]string)
 	}
+	j.internalStateLock.Lock()
 	maps.Copy(env, j.stepsEnv)
+	j.internalStateLock.Unlock()
 	j.applyPrependPath(ctx, env)
 
 	for _, e := range []WFCommandEnvFile{
@@ -205,6 +211,8 @@ func (j *Job) loadWFCmdFilesAfterStep(
 	stepCtx *StepContext,
 ) error {
 	oopser := oops.FromContext(ctx).With("job_life_cycle", "loadWFCmdFilesAfterStep")
+	j.internalStateLock.Lock()
+	defer j.internalStateLock.Unlock()
 
 	if err := j.loadEnvWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing env command file")

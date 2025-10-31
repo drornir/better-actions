@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"strings"
 
 	"github.com/samber/oops"
 )
@@ -14,13 +15,17 @@ type JobStepOutputEvaluator struct {
 }
 
 func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command ParsedWorkflowCommand) error {
-	// Implementation of ExecuteCommand
 	return nil
 }
 
 func (e *JobStepOutputEvaluator) Print(ctx context.Context, text string) error {
-	// TODO remove sensitive data
-	//
+	for _, sens := range e.job.sensitiveStrings {
+		text = strings.ReplaceAll(text, sens, "***")
+	}
+	for _, senseexp := range e.job.sensitiveRegexes {
+		text = senseexp.ReplaceAllLiteralString(text, "***")
+	}
+
 	_, err := e.step.Console.Write([]byte(text))
 	if err != nil {
 		oopser := oops.FromContext(ctx)
