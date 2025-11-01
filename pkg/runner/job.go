@@ -6,8 +6,8 @@ import (
 	"maps"
 	"os"
 	"path"
-	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -25,17 +25,18 @@ type Job struct {
 	RunnerEnv    map[string]string
 	jobFilesRoot *os.Root
 
-	// internalStateLock to sync maps and lists below
-	internalStateLock sync.RWMutex
+	stepsEnvLock      sync.RWMutex
+	stepsEnv          map[string]string
+	stepsPathLock     sync.RWMutex
+	stepsPath         []string
+	stepOutputsLock   sync.RWMutex
+	stepOutputs       map[string]map[string]string
+	stepStatesLock    sync.RWMutex
+	stepStates        map[string]map[string]string
+	stepSummariesLock sync.RWMutex
+	stepSummaries     map[string]string
 
-	stepsEnv      map[string]string
-	stepsPath     []string
-	stepOutputs   map[string]map[string]string
-	stepStates    map[string]map[string]string
-	stepSummaries map[string]string
-
-	sensitiveStrings []string
-	sensitiveRegexes []regexp.Regexp
+	secretsMasker SecretsMasker
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -99,6 +100,18 @@ func (j *Job) Run(ctx context.Context) error {
 	return nil
 }
 
+func (j *Job) AllowUnsecureCommands() bool {
+	if ok, _ := strconv.ParseBool(j.RunnerEnv[envActionsAllowUnsecureCommands]); ok {
+		return true
+	}
+	j.stepsEnvLock.RLock()
+	defer j.stepsEnvLock.RUnlock()
+	if ok, _ := strconv.ParseBool(j.stepsEnv[envActionsAllowUnsecureCommands]); ok {
+		return true
+	}
+	return false
+}
+
 func (j *Job) prepareJob(
 	ctx context.Context,
 	jobName string,
@@ -146,9 +159,9 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	if env == nil {
 		env = make(map[string]string)
 	}
-	j.internalStateLock.Lock()
+	j.stepsEnvLock.RLock()
 	maps.Copy(env, j.stepsEnv)
-	j.internalStateLock.Unlock()
+	j.stepsEnvLock.RUnlock()
 	j.applyPrependPath(ctx, env)
 
 	for _, e := range []WFCommandEnvFile{
@@ -177,6 +190,8 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 }
 
 func (j *Job) applyPrependPath(ctx context.Context, env map[string]string) {
+	j.stepsPathLock.RLock()
+	defer j.stepsPathLock.RUnlock()
 	logger := log.FromContext(ctx)
 	if len(j.stepsPath) == 0 {
 		return
@@ -211,8 +226,6 @@ func (j *Job) loadWFCmdFilesAfterStep(
 	stepCtx *StepContext,
 ) error {
 	oopser := oops.FromContext(ctx).With("job_life_cycle", "loadWFCmdFilesAfterStep")
-	j.internalStateLock.Lock()
-	defer j.internalStateLock.Unlock()
 
 	if err := j.loadEnvWfCmdFile(ctx, stepCtx); err != nil {
 		return oopser.Wrapf(err, "processing env command file")
@@ -247,6 +260,8 @@ func (j *Job) loadEnvWfCmdFile(ctx context.Context, stepCtx *StepContext) error 
 		return oopser.Wrapf(err, "parsing env file")
 	}
 
+	j.stepsEnvLock.Lock()
+	defer j.stepsEnvLock.Unlock()
 	for key, value := range updates {
 		j.stepsEnv[key] = value
 		logger.D(ctx, "applied env from github env file", "env.name", key)
@@ -272,6 +287,9 @@ func (j *Job) loadPathWfCmdFile(ctx context.Context, stepCtx *StepContext) error
 		return nil
 	}
 
+	j.stepsPathLock.Lock()
+	defer j.stepsPathLock.Unlock()
+
 	for _, entry := range entries {
 		j.addPathEntry(entry)
 		logger.D(ctx, "applied path from github path file", "path.entry", entry)
@@ -296,6 +314,9 @@ func (j *Job) loadOutputWfCmdFile(ctx context.Context, stepCtx *StepContext) err
 	if len(updates) == 0 {
 		return nil
 	}
+
+	j.stepOutputsLock.Lock()
+	defer j.stepOutputsLock.Unlock()
 
 	stepKey := stepCtx.StepID
 	output := j.stepOutputs[stepKey]
@@ -329,6 +350,9 @@ func (j *Job) loadStateWfCmdFile(ctx context.Context, stepCtx *StepContext) erro
 		return nil
 	}
 
+	j.stepStatesLock.Lock()
+	defer j.stepStatesLock.Unlock()
+
 	stepKey := stepCtx.StepID
 	state := j.stepStates[stepKey]
 	if state == nil {
@@ -357,6 +381,9 @@ func (j *Job) loadStepSummaryWfCmdFile(ctx context.Context, stepCtx *StepContext
 	if err != nil {
 		return oopser.Wrapf(err, "reading step summary")
 	}
+
+	j.stepSummariesLock.Lock()
+	defer j.stepSummariesLock.Unlock()
 
 	j.stepSummaries[stepCtx.StepID] = summary
 	logger.D(ctx, "captured step summary", "step.scriptID", stepCtx.StepID)
