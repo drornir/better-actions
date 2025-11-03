@@ -40,22 +40,31 @@ func (f WFCommandEnvFile) EnvVarName() string {
 }
 
 type ParsedWorkflowCommand struct {
-	Command WorkflowCommandName
-	Props   map[string]string
-	Data    string
+	Command   WorkflowCommandName
+	Props     map[string]string
+	Data      string
+	RawString string
 }
 
 func parseWorkflowCommand(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
+	original := line
 	line = strings.TrimFunc(line, unicode.IsSpace) // also removes \r?\n from the end
 
+	var (
+		out ParsedWorkflowCommand
+		ok  bool
+	)
 	if strings.HasPrefix(line, "::") {
-		return parseWorkflowCommandV2(ctx, line)
+		out, ok = parseWorkflowCommandV2(ctx, line)
 	} else if cmdStart := strings.Index(line, "##["); cmdStart >= 0 {
 		line = line[cmdStart:]
-		return parseWorkflowCommandV1(ctx, line)
-	} else {
-		return ParsedWorkflowCommand{}, false
+		out, ok = parseWorkflowCommandV1(ctx, line)
 	}
+
+	if ok {
+		out.RawString = original
+	}
+	return out, ok
 }
 
 // parseWorkflowCommandV2 parses a command line in the format "::command key=value key=value::data". This is the
