@@ -2,10 +2,13 @@ package runner
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/samber/oops"
 
 	"github.com/drornir/better-actions/pkg/ctxkit"
+	"github.com/drornir/better-actions/pkg/log"
 )
 
 // JobStepOutputEvaluator is responsible for evaluating the output of a job step.
@@ -18,12 +21,22 @@ type JobStepOutputEvaluator struct {
 func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command ParsedWorkflowCommand) error {
 	ctx, logger, oopser := ctxkit.With(ctx, "workflow_command", command.Command)
 
+	echoIfEnabled := func() {
+		if !e.step.EchoCommands {
+			return
+		}
+		if err := e.Print(ctx, command.RawString); err != nil {
+			logger.E(ctx, "error echoing command", "error", err)
+		}
+	}
+
 	switch command.Command {
 
 	case WorkflowCommandNameSetEnv:
 		if !e.job.AllowUnsecureCommands() {
 			return oopser.Errorf(unsupportedCommandMessageDisabled, command.Command.String())
 		}
+		echoIfEnabled()
 		key := command.Props["name"]
 		if key == "" {
 			return oopser.Errorf("environment variable name cannot be empty")
@@ -32,6 +45,7 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		return e.job.appendToCommandFile(ctx, e.step, GithubEnv, entry)
 
 	case WorkflowCommandNameSetOutput:
+		echoIfEnabled()
 		key := command.Props["name"]
 		if key == "" {
 			return oopser.Errorf("output variable name cannot be empty")
@@ -40,6 +54,7 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		return e.job.appendToCommandFile(ctx, e.step, GithubOutput, entry)
 
 	case WorkflowCommandNameSaveState:
+		echoIfEnabled()
 		key := command.Props["name"]
 		if key == "" {
 			return oopser.Errorf("state key name cannot be empty")
@@ -52,39 +67,57 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		return nil
 
 	case WorkflowCommandNameAddPath:
+		echoIfEnabled()
 		if command.Data == "" {
 			return oopser.Errorf("path cannot be empty")
 		}
 		return e.job.appendToCommandFile(ctx, e.step, GithubPath, command.Data)
 
 	case WorkflowCommandNameDebug:
-		if e.job.debugEnabled {
-			return oopser.Wrap(e.Print(ctx, command.RawString))
+		if !e.job.debugEnabled {
+			return nil
+		}
+		cleanString := strings.ReplaceAll(command.RawString, "\r\n", "\n")
+		for l := range strings.SplitSeq(cleanString, "\n") {
+			if err := e.Print(ctx, fmt.Sprintf("##[debug] %s", l)); err != nil {
+				return oopser.Wrap(err)
+			}
 		}
 		return nil
 
-	case WorkflowCommandNameWarning:
-		panic("TODO implement WorkflowCommandNameWarning")
-
-	case WorkflowCommandNameError:
-		panic("TODO implement WorkflowCommandNameError")
-
-	case WorkflowCommandNameNotice:
-		panic("TODO implement WorkflowCommandNameNotice")
+	case WorkflowCommandNameNotice, WorkflowCommandNameWarning, WorkflowCommandNameError:
+		return e.processIssueCommand(ctx, command)
 
 	case WorkflowCommandNameGroup:
-		return oopser.Wrap(e.Print(ctx, command.RawString))
+		echoIfEnabled()
+		return oopser.Wrap(e.Print(ctx, fmt.Sprintf("##[group]%s", command.Data)))
 
 	case WorkflowCommandNameEndgroup:
-		return oopser.Wrap(e.Print(ctx, command.RawString))
+		echoIfEnabled()
+		return oopser.Wrap(e.Print(ctx, fmt.Sprintf("##[endgroup]%s", command.Data)))
 
 	case WorkflowCommandNameEcho:
-		panic("TODO implement WorkflowCommandNameEcho")
+		echoIfEnabled()
+		switch strings.ToUpper(strings.TrimSpace(command.Data)) {
+		case "ON":
+			e.step.EchoCommands = true
+		case "OFF":
+			e.step.EchoCommands = false
+		default:
+			return oopser.Errorf("echo command accepts only 'on' or 'off', got '%s'", command.Command)
+		}
+		return nil
 
 	default:
 		logger.E(ctx, "unknown workflow command")
 		return oopser.Wrap(e.Print(ctx, command.RawString))
 	}
+}
+
+func (e *JobStepOutputEvaluator) processIssueCommand(ctx context.Context, command ParsedWorkflowCommand) error {
+	logger := log.FromContext(ctx)
+	logger.W(ctx, "issue type commands are not supported yet")
+	return nil
 }
 
 func (e *JobStepOutputEvaluator) Print(ctx context.Context, text string) error {
