@@ -34,10 +34,18 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		e.job.stepsEnv[envKey] = command.Data
 
 	case WorkflowCommandNameSetOutput:
-		panic("TODO implement WorkflowCommandNameSetOutput")
+		outputKey := command.Props["name"]
+		if outputKey == "" {
+			return oopser.Errorf("output variable name cannot be empty")
+		}
+		e.job.stepOutputsLock.Lock()
+		defer e.job.stepOutputsLock.Unlock()
+		if e.job.stepOutputs[e.step.StepID] == nil {
+			e.job.stepOutputs[e.step.StepID] = make(map[string]string)
+		}
+		e.job.stepOutputs[e.step.StepID][outputKey] = command.Data
 
 	case WorkflowCommandNameSaveState:
-		panic("TODO implement WorkflowCommandNameSaveState")
 
 	case WorkflowCommandNameAddMask:
 		e.job.secretsMasker.AddString(command.Data)
