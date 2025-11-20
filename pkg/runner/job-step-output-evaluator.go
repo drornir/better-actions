@@ -5,7 +5,7 @@ import (
 
 	"github.com/samber/oops"
 
-	"github.com/drornir/better-actions/pkg/log"
+	"github.com/drornir/better-actions/pkg/ctxkit"
 )
 
 // JobStepOutputEvaluator is responsible for evaluating the output of a job step.
@@ -16,8 +16,7 @@ type JobStepOutputEvaluator struct {
 }
 
 func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command ParsedWorkflowCommand) error {
-	oopser := oops.FromContext(ctx).With("workflow_command", command.Command)
-	logger := log.FromContext(ctx).With("workflow_command", command.Command)
+	ctx, logger, oopser := ctxkit.With(ctx, "workflow_command", command.Command)
 
 	switch command.Command {
 
@@ -25,46 +24,44 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		if !e.job.AllowUnsecureCommands() {
 			return oopser.Errorf(unsupportedCommandMessageDisabled, command.Command.String())
 		}
-		envKey := command.Props["name"]
-		if envKey == "" {
+		key := command.Props["name"]
+		if key == "" {
 			return oopser.Errorf("environment variable name cannot be empty")
 		}
-		e.job.stepsEnvLock.Lock()
-		defer e.job.stepsEnvLock.Unlock()
-		e.job.stepsEnv[envKey] = command.Data
+		entry := encodeEnvfileLikeKeyValue(key, command.Data)
+		return e.job.appendToCommandFile(ctx, e.step, GithubEnv, entry)
 
 	case WorkflowCommandNameSetOutput:
-		outputKey := command.Props["name"]
-		if outputKey == "" {
+		key := command.Props["name"]
+		if key == "" {
 			return oopser.Errorf("output variable name cannot be empty")
 		}
-		e.job.stepOutputsLock.Lock()
-		defer e.job.stepOutputsLock.Unlock()
-		if e.job.stepOutputs[e.step.StepID] == nil {
-			e.job.stepOutputs[e.step.StepID] = make(map[string]string)
-		}
-		e.job.stepOutputs[e.step.StepID][outputKey] = command.Data
+		entry := encodeEnvfileLikeKeyValue(key, command.Data)
+		return e.job.appendToCommandFile(ctx, e.step, GithubOutput, entry)
 
 	case WorkflowCommandNameSaveState:
 		key := command.Props["name"]
 		if key == "" {
 			return oopser.Errorf("state key name cannot be empty")
 		}
-		e.job.stepStatesLock.Lock()
-		defer e.job.stepStatesLock.Unlock()
-		if e.job.stepStates[e.step.StepID] == nil {
-			e.job.stepStates[e.step.StepID] = make(map[string]string)
-		}
-		e.job.stepStates[e.step.StepID][key] = command.Data
+		entry := encodeEnvfileLikeKeyValue(key, command.Data)
+		return e.job.appendToCommandFile(ctx, e.step, GithubState, entry)
 
 	case WorkflowCommandNameAddMask:
 		e.job.secretsMasker.AddString(command.Data)
+		return nil
 
 	case WorkflowCommandNameAddPath:
-		panic("TODO implement WorkflowCommandNameAddPath")
+		if command.Data == "" {
+			return oopser.Errorf("path cannot be empty")
+		}
+		return e.job.appendToCommandFile(ctx, e.step, GithubPath, command.Data)
 
 	case WorkflowCommandNameDebug:
-		panic("TODO implement WorkflowCommandNameDebug")
+		if e.job.debugEnabled {
+			return oopser.Wrap(e.Print(ctx, command.RawString))
+		}
+		return nil
 
 	case WorkflowCommandNameWarning:
 		panic("TODO implement WorkflowCommandNameWarning")
@@ -76,10 +73,10 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		panic("TODO implement WorkflowCommandNameNotice")
 
 	case WorkflowCommandNameGroup:
-		panic("TODO implement WorkflowCommandNameGroup")
+		return oopser.Wrap(e.Print(ctx, command.RawString))
 
 	case WorkflowCommandNameEndgroup:
-		panic("TODO implement WorkflowCommandNameEndgroup")
+		return oopser.Wrap(e.Print(ctx, command.RawString))
 
 	case WorkflowCommandNameEcho:
 		panic("TODO implement WorkflowCommandNameEcho")
@@ -88,8 +85,6 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		logger.E(ctx, "unknown workflow command")
 		return oopser.Wrap(e.Print(ctx, command.RawString))
 	}
-
-	return nil
 }
 
 func (e *JobStepOutputEvaluator) Print(ctx context.Context, text string) error {

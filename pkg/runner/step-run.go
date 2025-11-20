@@ -9,9 +9,8 @@ import (
 	"strings"
 
 	"github.com/kballard/go-shellquote"
-	"github.com/samber/oops"
 
-	"github.com/drornir/better-actions/pkg/log"
+	"github.com/drornir/better-actions/pkg/ctxkit"
 	"github.com/drornir/better-actions/pkg/shell"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
@@ -22,19 +21,13 @@ type StepRun struct {
 }
 
 func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
-	oopser := oops.FromContext(ctx)
-	logger := log.FromContext(ctx)
-
 	step := s.Config
 	wd := s.Context.WorkingDir
 
-	ctxkv := []any{
+	ctx, logger, oopser := ctxkit.With(ctx,
 		"step.shell", step.Shell,
 		"step.shellCommand", step.ShellCommand(),
-		"step.run", step.Run,
-	}
-	oopser = oopser.With(ctxkv...)
-	logger = logger.With(ctxkv...)
+		"step.run", step.Run)
 
 	const scriptName = "script.sh"
 	if err := wd.WriteFile(scriptName, []byte(step.Run), 0o777); err != nil {

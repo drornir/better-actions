@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand/v2"
 	"os"
 	"strings"
 )
@@ -149,4 +150,9 @@ func (p *envLikeFileParser) readHereDoc(delimiter string) (string, error) {
 		builder.WriteString(newline)
 		lastNewline = newline
 	}
+}
+
+func encodeEnvfileLikeKeyValue(key, value string) string {
+	eof := fmt.Sprintf("EOF_%d", rand.Uint())
+	return fmt.Sprintf("%[1]s<<%[3]s\n%[2]s\n%[3]s\n", key, value, eof)
 }

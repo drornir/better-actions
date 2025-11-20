@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/drornir/better-actions/pkg/log"
+	"github.com/drornir/better-actions/pkg/ctxkit"
 )
 
 // WorkflowCommandName is an enum for all the workflow action commands to support
@@ -70,7 +70,7 @@ func parseWorkflowCommand(ctx context.Context, line string) (ParsedWorkflowComma
 // parseWorkflowCommandV2 parses a command line in the format "::command key=value key=value::data". This is the
 // GitHub Actions syntax that is documented and supported
 func parseWorkflowCommandV2(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
-	logger := log.FromContext(ctx).With("function", "parseCommandV2")
+	ctx, logger, _ := ctxkit.With(ctx, "function", "parseCommandV2")
 
 	var wfcmd ParsedWorkflowCommand
 	line = strings.TrimLeft(line, " ")
@@ -144,8 +144,7 @@ func parseWorkflowCommandV2(ctx context.Context, line string) (ParsedWorkflowCom
 // parseWorkflowCommandV1 parses a command line in the format "##[command key=value; key=value]data". This is the
 // AzureDevOps syntax that is deprecated but still supported.
 func parseWorkflowCommandV1(ctx context.Context, line string) (ParsedWorkflowCommand, bool) {
-	logger := log.FromContext(ctx).With("function", "parseCommandV1")
-
+	ctx, logger, _ := ctxkit.With(ctx, "function", "parseCommandV1")
 	var wfcmd ParsedWorkflowCommand
 
 	// V1 format allows the command to appear anywhere in the line after prefix text

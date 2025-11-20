@@ -15,6 +15,7 @@ import (
 	"github.com/samber/oops"
 
 	"github.com/drornir/better-actions/pkg/concurrency"
+	"github.com/drornir/better-actions/pkg/ctxkit"
 	"github.com/drornir/better-actions/pkg/log"
 )
 
@@ -158,9 +159,7 @@ func (r *StepOutputReader) readLines(ctx context.Context) {
 }
 
 func (r *StepOutputReader) processLines(ctx context.Context) {
-	ctxkv := []any{"output_reader_worker", "process_lines"}
-	ctx = oops.WithBuilder(ctx, oops.FromContext(ctx).With(ctxkv...))
-	ctx = log.FromContext(ctx).With(ctxkv...).ContextWithLogger(ctx)
+	ctx, _, _ = ctxkit.With(ctx, "output_reader_worker", "process_lines")
 
 	for line := range concurrency.ClosedOrDone(r.linesChan, ctx) {
 		wfcmd, ok := parseWorkflowCommand(ctx, line)

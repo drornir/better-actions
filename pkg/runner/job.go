@@ -24,6 +24,7 @@ type Job struct {
 	Config       *yamls.Job
 	RunnerEnv    map[string]string
 	jobFilesRoot *os.Root
+	debugEnabled bool
 
 	stepsEnvLock      sync.RWMutex
 	stepsEnv          map[string]string
@@ -187,6 +188,23 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		WorkingDir: wd,
 		Env:        env,
 	}, nil
+}
+
+func (j *Job) appendToCommandFile(ctx context.Context, step *StepContext, command WFCommandEnvFile, data string) error {
+	oopser := oops.FromContext(ctx).With("step", step, "command", command)
+
+	filepath, ok := j.commandFilePath(step, command)
+	if !ok {
+		return oopser.Errorf("command file not found")
+	}
+	f, err := os.OpenFile(filepath, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return oopser.Wrapf(err, "opening file %s", filepath)
+	}
+	defer f.Close()
+	data = strings.TrimRight(data, "\n") + "\n"
+	_, err = f.WriteString(data)
+	return oopser.Wrapf(err, "writing to file %s", filepath)
 }
 
 func (j *Job) applyPrependPath(ctx context.Context, env map[string]string) {
