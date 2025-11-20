@@ -46,6 +46,16 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		e.job.stepOutputs[e.step.StepID][outputKey] = command.Data
 
 	case WorkflowCommandNameSaveState:
+		key := command.Props["name"]
+		if key == "" {
+			return oopser.Errorf("state key name cannot be empty")
+		}
+		e.job.stepStatesLock.Lock()
+		defer e.job.stepStatesLock.Unlock()
+		if e.job.stepStates[e.step.StepID] == nil {
+			e.job.stepStates[e.step.StepID] = make(map[string]string)
+		}
+		e.job.stepStates[e.step.StepID][key] = command.Data
 
 	case WorkflowCommandNameAddMask:
 		e.job.secretsMasker.AddString(command.Data)
