@@ -29,7 +29,23 @@ jobs:
           echo "$(pwd)/bin" >> $GITHUB_PATH
       - name: path check
         run: |
-          echo $PATH
+          # echo $PATH
           type custom_executable
           custom_executable
+
+      - name: inline-setters
+        run: |
+          echo '::echo::ON'
+          echo '::set-env name=WAS_SET_BY_INLINE_COMMAND::true'
+          echo '::set-output name=was_set_by_inline_command::true'
+          echo '::add-mask::xx-VERY-SECRET-VALUE-xx'
+
+      - name: check inline setters
+        run: |
+          echo WAS_SET_BY_INLINE_COMMAND=$WAS_SET_BY_INLINE_COMMAND
+          # TODO check 'was_set_by_inline_command' was set
+          echo my secret is xx-VERY-SECRET-VALUE-xx
+
+      - name: cleanup
+        run: |
           rm -rf ./bin

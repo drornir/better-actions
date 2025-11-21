@@ -456,3 +456,69 @@ func readStepSummary(path string) (string, error) {
 	}
 	return string(data), nil
 }
+
+// StepsEnvCopy returns a copy of the accumulated environment variables from all steps.
+func (j *Job) StepsEnvCopy() map[string]string {
+	if j == nil {
+		return nil
+	}
+	j.stepsEnvLock.RLock()
+	defer j.stepsEnvLock.RUnlock()
+	result := make(map[string]string, len(j.stepsEnv))
+	maps.Copy(result, j.stepsEnv)
+	return result
+}
+
+// StepsPathCopy returns a copy of the accumulated PATH entries from all steps.
+func (j *Job) StepsPathCopy() []string {
+	if j == nil {
+		return nil
+	}
+	j.stepsPathLock.RLock()
+	defer j.stepsPathLock.RUnlock()
+	return slices.Clone(j.stepsPath)
+}
+
+// StepOutputsCopy returns a copy of all step outputs.
+func (j *Job) StepOutputsCopy() map[string]map[string]string {
+	if j == nil {
+		return nil
+	}
+	j.stepOutputsLock.RLock()
+	defer j.stepOutputsLock.RUnlock()
+	result := make(map[string]map[string]string, len(j.stepOutputs))
+	for stepID, outputs := range j.stepOutputs {
+		stepCopy := make(map[string]string, len(outputs))
+		maps.Copy(stepCopy, outputs)
+		result[stepID] = stepCopy
+	}
+	return result
+}
+
+// StepStatesCopy returns a copy of all step states.
+func (j *Job) StepStatesCopy() map[string]map[string]string {
+	if j == nil {
+		return nil
+	}
+	j.stepStatesLock.RLock()
+	defer j.stepStatesLock.RUnlock()
+	result := make(map[string]map[string]string, len(j.stepStates))
+	for stepID, states := range j.stepStates {
+		stepCopy := make(map[string]string, len(states))
+		maps.Copy(stepCopy, states)
+		result[stepID] = stepCopy
+	}
+	return result
+}
+
+// StepSummariesCopy returns a copy of all step summaries.
+func (j *Job) StepSummariesCopy() map[string]string {
+	if j == nil {
+		return nil
+	}
+	j.stepSummariesLock.RLock()
+	defer j.stepSummariesLock.RUnlock()
+	result := make(map[string]string, len(j.stepSummaries))
+	maps.Copy(result, j.stepSummaries)
+	return result
+}

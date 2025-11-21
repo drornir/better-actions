@@ -31,7 +31,7 @@ func TestHelloWorkflow(t *testing.T) {
 		t.Fatal("failed to read workflow:", err)
 	}
 
-	if err := run.RunWorkflow(ctx, wf); err != nil {
+	if _, err := run.RunWorkflow(ctx, wf); err != nil {
 		t.Fatal("failed to run workflow:", err)
 	}
 
