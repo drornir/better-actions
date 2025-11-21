@@ -18,6 +18,8 @@ type JobStepOutputEvaluator struct {
 	step *StepContext
 }
 
+// ExecuteCommand runs commands that were processed via outputting string to stdout from the user's script/action
+// TODO 'notice', 'warning', 'error' and 'add-matcher' are not yet implemented (as of 2025-11)
 func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command ParsedWorkflowCommand) error {
 	ctx, logger, oopser := ctxkit.With(ctx, "workflow_command", command.Command)
 
@@ -73,6 +75,10 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		}
 		return e.job.appendToCommandFile(ctx, e.step, GithubPath, command.Data)
 
+	case WorkflowCommandNameAddMatcher, WorkflowCommandNameRemoveMatcher:
+		logger.W(ctx, "matcher type commands are not supported yet (add-matcher, remove-matcher)")
+		return nil
+
 	case WorkflowCommandNameDebug:
 		if !e.job.debugEnabled {
 			return nil
@@ -114,9 +120,12 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 	}
 }
 
+// processIssueCommand handles 'notice', 'warning', and 'error' commands.
+// reference: `public abstract class IssueCommandExtension` in Runner.Worker/ActionCommandManager.cs:600
 func (e *JobStepOutputEvaluator) processIssueCommand(ctx context.Context, command ParsedWorkflowCommand) error {
+	_ = command
 	logger := log.FromContext(ctx)
-	logger.W(ctx, "issue type commands are not supported yet")
+	logger.W(ctx, "issue type commands are not supported yet (notice, warn, error)")
 	return nil
 }
 
