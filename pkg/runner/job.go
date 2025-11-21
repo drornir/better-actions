@@ -13,6 +13,7 @@ import (
 
 	"github.com/samber/oops"
 
+	"github.com/drornir/better-actions/pkg/ctxkit"
 	"github.com/drornir/better-actions/pkg/defers"
 	"github.com/drornir/better-actions/pkg/log"
 	"github.com/drornir/better-actions/pkg/yamls"
@@ -53,13 +54,11 @@ func (j *Job) Run(ctx context.Context) error {
 	defer jobCleanup()
 
 	for i, step := range j.Config.Steps {
-		ctxkv := []any{
+		ctx, logger, oopser := ctxkit.With(ctx,
 			"stepIndex", i,
 			"step.name", step.Name,
 			"step.ID", makeStepID(i, step),
-		}
-		oopser := oopser.With(ctxkv...)
-		logger := logger.With(ctxkv...)
+		)
 		logger.D(ctx, "running step")
 
 		stepContext, err := j.newStepContext(ctx, i, step)
@@ -71,24 +70,35 @@ func (j *Job) Run(ctx context.Context) error {
 			step: stepContext,
 		}
 		stepWriteTo := NewStepOutputInterpreter(&outEval)
+		stepWriteTo.Start(ctx)
 
 		var stepResult StepResult
-		switch {
-		case step.Run != "":
-			sr := &StepRun{
-				Config:  step,
-				Context: stepContext,
+		runErr := func() error {
+			defer stepWriteTo.Close()
+			switch {
+			case step.Run != "":
+				sr := &StepRun{
+					Config:  step,
+					Context: stepContext,
+				}
+				res, err := sr.Run(ctx, stepWriteTo)
+				if err != nil {
+					return oopser.Wrapf(err, "executing step")
+				}
+				stepResult = res
+			case step.Uses != "":
+				// TODO
+				return oopser.New("'uses' is not implemented")
+			default:
+				return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
 			}
-			res, err := sr.Run(ctx, stepWriteTo)
-			if err != nil {
-				return oopser.Wrapf(err, "executing step")
-			}
-			stepResult = res
-		case step.Uses != "":
-			// TODO
-			return oopser.New("'uses' is not implemented")
-		default:
-			return oopser.New("step is invalid: doesn't have 'run' or 'uses'")
+			return nil
+		}()
+		if runErr != nil {
+			return runErr
+		}
+		if stepWriteTo.Err() != nil {
+			return oopser.Wrapf(stepWriteTo.Err(), "process step output")
 		}
 
 		if stepResult.Status == StepStatusFailed {

@@ -29,12 +29,12 @@ type StepOutputReader struct {
 	stepOutputLock sync.Mutex
 	backend        StepOutputEvaluator
 
-	linesChan chan string
-	stopChan  chan struct{}
-	scanner   *bufio.Scanner
-	stopScan  atomic.Bool
-	err       error
-	errLock   sync.RWMutex
+	linesChan   chan string
+	scanner     *bufio.Scanner
+	stopScan    atomic.Bool
+	stoppedChan chan struct{}
+	err         error
+	errLock     sync.RWMutex
 
 	// extracted from the original context given to Start
 	ctx    context.Context
@@ -45,13 +45,11 @@ type StepOutputReader struct {
 func NewStepOutputInterpreter(backend StepOutputEvaluator) *StepOutputReader {
 	var rw bytes.Buffer
 
-	stopChan := make(chan struct{}, 1)
-
 	r := &StepOutputReader{
-		stepOutput: &rw,
-		backend:    backend,
-		linesChan:  make(chan string, 4096),
-		stopChan:   stopChan,
+		stepOutput:  &rw,
+		backend:     backend,
+		linesChan:   make(chan string, 4096),
+		stoppedChan: make(chan struct{}),
 	}
 
 	return r
@@ -82,10 +80,9 @@ func (r *StepOutputReader) Write(p []byte) (n int, err error) {
 // Close implements io.Closer. Always returns nil
 func (r *StepOutputReader) Close() error {
 	r.logger.D(r.ctx, "stopping step output reader")
-	alreadyStopping := r.stopScan.Swap(true)
-	if !alreadyStopping {
-		close(r.stopChan)
-	}
+	r.stopScan.Store(true)
+	<-r.stoppedChan
+
 	return nil
 }
 
@@ -135,7 +132,7 @@ func (r *StepOutputReader) readLines(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-r.stopChan:
+		case <-r.stoppedChan:
 			return
 		default:
 			line, readNewBytes, gotEOF, err := read()
@@ -155,7 +152,7 @@ func (r *StepOutputReader) readLines(ctx context.Context) {
 				}
 				backoff = min(backoff*2, maxBackoff)
 				logger.With("backoff_amount", backoff.String()).
-					D(ctx, "EOF backoff: waiting %s for more input", backoff)
+					D(ctx, "EOF backoff: waiting for more input", "backoff", backoff)
 				select {
 				case <-ctx.Done():
 				case <-time.After(backoff):
@@ -170,20 +167,22 @@ func (r *StepOutputReader) readLines(ctx context.Context) {
 func (r *StepOutputReader) processLines(ctx context.Context) {
 	ctx, _, _ = ctxkit.With(ctx, "output_reader_worker", "process_lines")
 
+	defer func() { close(r.stoppedChan) }()
+
 	for line := range concurrency.ClosedOrDone(r.linesChan, ctx) {
 		wfcmd, ok := parseWorkflowCommand(ctx, line)
 		if ok {
 			err := r.backend.ExecuteCommand(ctx, wfcmd)
 			if err != nil {
 				r.setErr(err)
-				r.Close()
+				r.stopScan.Store(true)
 				return
 			}
 			continue
 		}
 		if err := r.backend.Print(ctx, line); err != nil {
 			r.setErr(err)
-			r.Close()
+			r.stopScan.Store(true)
 			return
 		}
 	}

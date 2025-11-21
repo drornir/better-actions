@@ -40,6 +40,20 @@ func (m *SecretsMasker) AddString(s ...string) {
 	slices.SortFunc(m.sensitiveStrings, func(a, b string) int {
 		return len(b) - len(a)
 	})
+	for i := 0; i < len(m.sensitiveStrings)-1; i++ {
+		cur := m.sensitiveStrings[i]
+		dups := 0
+		for cur == m.sensitiveStrings[i+1+dups] {
+			dups++
+			if i+dups+1 == len(m.sensitiveStrings) {
+				break
+			}
+		}
+		if dups > 0 {
+			after := m.sensitiveStrings[i+1+dups:]
+			m.sensitiveStrings = append(m.sensitiveStrings[:i+1], after...)
+		}
+	}
 }
 
 func (m *SecretsMasker) AddRegex(r ...*regexp.Regexp) {
@@ -157,7 +171,7 @@ func encodeAsJSONString(s string, htmlescape bool) string {
 	if err := encoder.Encode(s); err != nil {
 		panic(fmt.Errorf("JSON encoding failed on write: %w", err))
 	}
-	return strings.Trim(out.String(), "\"")
+	return strings.Trim(out.String(), "\"\n")
 }
 
 // encodeAsXMLString converts to an XML string
@@ -232,7 +246,11 @@ func powerShellPostAmpersandEscape(value string) string {
 func expandMaskedSecretValueWithEncoders(secretValue string) []string {
 	var expandedValues []string
 	for _, encoder := range secretValueEncoders {
-		expandedValues = append(expandedValues, encoder(secretValue))
+		encoded := encoder(secretValue)
+		if encoded == "" {
+			continue
+		}
+		expandedValues = append(expandedValues, encoded)
 	}
 	return expandedValues
 }
