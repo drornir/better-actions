@@ -27,11 +27,11 @@ const (
 )
 
 type StepContext struct {
-	Console      io.Writer
 	IndexInJob   int
 	WorkingDir   *os.Root
 	Env          map[string]string
 	StepID       string
+	Console      io.Writer
 	EchoCommands bool
 }
 

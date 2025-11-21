@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"path"
 	"strings"
@@ -20,7 +21,7 @@ type StepRun struct {
 	Context *StepContext
 }
 
-func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
+func (s *StepRun) Run(ctx context.Context, writeTo io.Writer) (StepResult, error) {
 	step := s.Config
 	wd := s.Context.WorkingDir
 
@@ -51,8 +52,8 @@ func (s *StepRun) Run(ctx context.Context) (StepResult, error) {
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{
 		ExtraEnv: s.Context.Env,
 		Dir:      s.Config.WorkingDirectory,
-		StdOut:   s.Context.Console,
-		StdErr:   s.Context.Console,
+		StdOut:   writeTo,
+		StdErr:   writeTo,
 	})
 
 	logger.D(ctx, "running command", "command.path", cmd.Path, "command.args", cmd.Args)

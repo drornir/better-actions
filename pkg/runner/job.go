@@ -66,6 +66,11 @@ func (j *Job) Run(ctx context.Context) error {
 		if err != nil {
 			return oopser.Wrapf(err, "creating step context")
 		}
+		outEval := JobStepOutputEvaluator{
+			job:  j,
+			step: stepContext,
+		}
+		stepWriteTo := NewStepOutputInterpreter(&outEval)
 
 		var stepResult StepResult
 		switch {
@@ -74,7 +79,7 @@ func (j *Job) Run(ctx context.Context) error {
 				Config:  step,
 				Context: stepContext,
 			}
-			res, err := sr.Run(ctx)
+			res, err := sr.Run(ctx, stepWriteTo)
 			if err != nil {
 				return oopser.Wrapf(err, "executing step")
 			}
