@@ -515,6 +515,10 @@ func (lex *ExprLexer) Next() *Token {
 		return lex.lexChar(TokenKindStar)
 	case ',':
 		return lex.lexChar(TokenKindComma)
+	case '?':
+		return lex.lexChar(TokenKindQuestion)
+	case ':':
+		return lex.lexChar(TokenKindColon)
 	default:
 		return lex.unexpected(r, "expression", expectedAllChars)
 	}

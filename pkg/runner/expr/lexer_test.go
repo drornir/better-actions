@@ -273,6 +273,16 @@ func TestLexOneToken(t *testing.T) {
 			input: "*",
 			kind:  TokenKindStar,
 		},
+		{
+			what:  "question mark",
+			input: "?",
+			kind:  TokenKindQuestion,
+		},
+		{
+			what:  "colon",
+			input: ":",
+			kind:  TokenKindColon,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -543,6 +553,24 @@ func TestLexExpression(t *testing.T) {
 			},
 		},
 		{
+			what:  "ternary expression",
+			input: "a ? b : c",
+			tokens: []TokenKind{
+				TokenKindIdent,
+				TokenKindQuestion,
+				TokenKindIdent,
+				TokenKindColon,
+				TokenKindIdent,
+			},
+			values: []string{
+				"a",
+				"?",
+				"b",
+				":",
+				"c",
+			},
+		},
+		{
 			what:   "empty expression",
 			input:  "",
 			tokens: []TokenKind{},
@@ -597,12 +625,6 @@ func TestLexExprError(t *testing.T) {
 		want  string
 		col   int
 	}{
-		{
-			what:  "unknown char",
-			input: "?",
-			want:  "unexpected character '?' while lexing expression",
-			col:   1,
-		},
 		{
 			what:  "unexpected EOF",
 			input: "42",
@@ -838,7 +860,7 @@ func TestLexTokenPos(t *testing.T) {
 		t.Fatalf("length of inputs mismatch. want=%d, have=%d", len(want), len(ts))
 	}
 
-	for i := 0; i < len(ts); i++ {
+	for i := range ts {
 		if ts[i].Offset != want[i] {
 			t.Errorf("%dth token offsets mismatch. want=%d, have=%d", i+1, want[i], ts[i].Offset)
 		}
