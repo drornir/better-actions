@@ -2,3 +2,5 @@
 // Paring is based on https://github.com/rhysd/actionlint, meaning a lot of copy pasting with extensions
 // to allow more than the basic functionality.
 package expr
+
+type TODO any
