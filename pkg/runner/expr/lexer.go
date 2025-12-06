@@ -108,6 +108,10 @@ func (t TokenKind) String() string {
 		return "*"
 	case TokenKindComma:
 		return ","
+	case TokenKindQuestion:
+		return "?"
+	case TokenKindColon:
+		return ":"
 	default:
 		panic("unreachable")
 	}
@@ -153,7 +157,7 @@ func isAlnum(r rune) bool {
 }
 
 const (
-	expectedPunctChars = "''', '}', '(', ')', '[', ']', '.', '!', '<', '>', '=', '&', '|', '*', ',', ' '"
+	expectedPunctChars = "''', '}', '(', ')', '[', ']', '.', '!', '<', '>', '=', '&', '|', '*', ',', ' ', '?', ':'"
 	expectedDigitChars = "'0'..'9'"
 	expectedAlphaChars = "'a'..'z', 'A'..'Z', '_'"
 	expectedAllChars   = expectedAlphaChars + ", " + expectedDigitChars + ", " + expectedPunctChars
