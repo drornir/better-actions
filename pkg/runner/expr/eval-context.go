@@ -23,11 +23,11 @@ type EvalContext struct {
 	// Strategy contains information about the matrix execution strategy.
 	Strategy StrategyContext
 	// Matrix contains information about the specific matrix combination for the current job.
-	Matrix JSONObject
+	Matrix JSObject
 	// Needs contains outputs and results from jobs that the current job depends on.
 	Needs map[string]NeedsContext
 	// Inputs contains inputs passed to the workflow (dispatch inputs or reusable workflow inputs).
-	Inputs JSONObject
+	Inputs JSObject
 }
 
 // GithubContext is modeled after https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
@@ -54,7 +54,7 @@ type GithubContext struct {
 	// Env is the path on the runner to the file that sets environment variables from workflow commands.
 	Env string `json:"env"`
 	// Event is the full event webhook payload.
-	Event JSONObject `json:"event"`
+	Event JSObject `json:"event"`
 	// EventName is the name of the event that triggered the workflow run.
 	EventName string `json:"event_name"`
 	// EventPath is the path to the file on the runner that contains the full event webhook payload.
@@ -207,5 +207,3 @@ type StrategyContext struct {
 	// MaxParallel is the maximum number of jobs that can run simultaneously when using a matrix job strategy.
 	MaxParallel int `json:"max-parallel"`
 }
-
-type JSONObject map[string]any
