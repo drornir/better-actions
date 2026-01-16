@@ -326,6 +326,38 @@ func (j *JSObject) UnmarshalFromGoMap(mapValue map[string]any) error {
 	return nil
 }
 
+// marshal json
+
+type ErrJSMarshal struct {
+	Msg   string
+	Value JSValue
+}
+
+func (e ErrJSMarshal) Error() string {
+	return fmt.Sprintf("%s: %v", e.Msg, e.Value)
+}
+
+func (j JSValue) MarshalJSON() ([]byte, error) {
+	switch {
+	case j.Object.IsPresent:
+		return json.Marshal(j.Object.Value)
+	case j.Array.IsPresent:
+		return json.Marshal(j.Array.Value)
+	case j.String.IsPresent:
+		return json.Marshal(j.String.Value)
+	case j.Number.IsPresent:
+		return json.Marshal(j.Number.Value)
+	case j.Boolean.IsPresent:
+		return json.Marshal(j.Boolean.Value)
+	case j.Null.IsPresent:
+		return []byte("null"), nil
+	case j.Undefined.IsPresent:
+		return []byte("undefined"), nil
+	default:
+		return nil, ErrJSMarshal{Msg: "error marshaling value", Value: j}
+	}
+}
+
 // debugging helpers
 
 func (j JSValue) GoString() string {

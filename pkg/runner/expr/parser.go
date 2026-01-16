@@ -330,7 +330,7 @@ func (p *Parser) Err() *Error {
 }
 
 // Parse parses token sequence lexed by a given lexer into syntax tree.
-func (p *Parser) Parse(l *ExprLexer) (Node, *Error) {
+func (p *Parser) Parse(l *ExprLexer) (Node, error) {
 	// Init
 	p.err = nil
 	p.lexer = l
