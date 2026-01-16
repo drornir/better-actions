@@ -1,7 +1,9 @@
 package expr
 
 import (
+	"encoding/json/v2"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/samber/oops"
@@ -198,6 +200,130 @@ func (j JSArray) Access(p ...JSPathSegment) (JSValue, error) {
 	}
 
 	return JSValue{}, ErrJSAccess{Type: "unexpected", Segment: p[0]}
+}
+
+// unmarshal
+
+type ErrJSUnmarshal struct {
+	Msg   string
+	Value any
+}
+
+func (e ErrJSUnmarshal) Error() string {
+	return fmt.Sprintf("error unmarshalling %#v: %s", e.Value, e.Msg)
+}
+
+func UnmarshalFromGo(value any) (JSValue, error) {
+	v := JSValue{}
+	if err := v.UnmarshalFromGo(value); err != nil {
+		return JSValue{}, err
+	}
+	return v, nil
+}
+
+func (j *JSValue) UnmarshalFromGo(value any) error {
+	if value == nil {
+		j.Null = Some(struct{}{})
+		return nil
+	}
+
+	switch value := value.(type) {
+	case JSValue:
+		*j = value
+		return nil
+	case JSObject:
+		j.Object = Some(value)
+		return nil
+	case JSArray:
+		j.Array = Some(value)
+		return nil
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	default:
+		return ErrJSUnmarshal{Msg: "unexpected type", Value: value}
+	case reflect.Struct:
+		asJSONMap := make(map[string]any, rv.NumField())
+		structAsJSONString, err := json.Marshal(value)
+		if err != nil {
+			return ErrJSUnmarshal{Msg: "error marshalling struct", Value: value}
+		}
+		if err := json.Unmarshal(structAsJSONString, &asJSONMap); err != nil {
+			return ErrJSUnmarshal{Msg: "error unmarshalling struct", Value: value}
+		}
+		return j.UnmarshalFromGo(asJSONMap)
+
+	case reflect.Map:
+		o := JSObject{}
+
+		mapkeys := rv.MapKeys()
+		if len(mapkeys) == 0 {
+			return nil
+		}
+		mapValue := make(map[string]any)
+		for _, key := range mapkeys {
+			if key.Kind() != reflect.String {
+				return ErrJSUnmarshal{Msg: fmt.Sprintf("unexpected key type %s while parsing map", key.Kind()), Value: value}
+			}
+			mapValue[key.String()] = rv.MapIndex(key).Interface()
+		}
+		if err := o.UnmarshalFromGoMap(mapValue); err != nil {
+			return oops.Join(ErrJSUnmarshal{Msg: "error parsing map", Value: value}, err)
+		}
+		j.Object = Some(o)
+		return nil
+
+	case reflect.Slice:
+		a := JSArray{}
+		for i := 0; i < rv.Len(); i++ {
+			v := JSValue{}
+			err := v.UnmarshalFromGo(rv.Index(i).Interface())
+			if err != nil {
+				return oops.Join(ErrJSUnmarshal{Msg: "error parsing element of array", Value: value}, err)
+			}
+			a = append(a, v)
+		}
+		j.Array = Some(a)
+		return nil
+
+	case reflect.Pointer:
+		rvElem := rv.Elem()
+		if rvElem.IsZero() {
+			j.Null = Some(struct{}{})
+			return nil
+		}
+		if err := j.UnmarshalFromGo(rvElem.Interface()); err != nil {
+			return oops.Join(ErrJSUnmarshal{Msg: "error parsing pointer", Value: value}, err)
+		}
+		return nil
+
+	case reflect.String:
+		j.String = Some(rv.String())
+		return nil
+
+	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		converted := rv.Convert(reflect.TypeOf(float64(0)))
+		j.Number = Some(converted.Float())
+		return nil
+
+	case reflect.Bool:
+		j.Boolean = Some(rv.Bool())
+		return nil
+	}
+}
+
+func (j *JSObject) UnmarshalFromGoMap(mapValue map[string]any) error {
+	result := make(JSObject)
+	for k, v := range mapValue {
+		jsv := JSValue{}
+		if err := jsv.UnmarshalFromGo(v); err != nil {
+			return oops.Join(ErrJSUnmarshal{Msg: "error parsing map", Value: mapValue}, err)
+		}
+		result[k] = jsv
+	}
+	*j = result
+	return nil
 }
 
 // debugging helpers

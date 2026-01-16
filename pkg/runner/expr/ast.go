@@ -1,5 +1,12 @@
 package expr
 
+import (
+	"fmt"
+	"strings"
+)
+
+// Taken from actionlint/expr_ast.go
+
 // Node is a node of expression syntax tree. To know the syntax, see
 // https://docs.github.com/en/actions/learn-github-actions/expressions
 type Node interface {
@@ -285,4 +292,49 @@ func visitExprNode(n, p Node, f VisitExprNodeFunc) {
 // VisitExprNode visits the given expression syntax tree with given function f.
 func VisitExprNode(n Node, f VisitExprNodeFunc) {
 	visitExprNode(n, nil, f)
+}
+
+// VisualizeAST prints a tree of string representation with indentation as the marker of tree nesting.
+func VisualizeAST(n Node) string {
+	sb := strings.Builder{}
+	indent := 0
+
+	visitor := VisitExprNodeFunc(func(node, parent Node, entering bool) {
+		if entering {
+			sb.WriteString(strings.Repeat("  ", indent))
+			sb.WriteString(fmt.Sprintf("%T ", node))
+			switch n := node.(type) {
+
+			case *ObjectDerefNode:
+				sb.WriteString("\n")
+				indent += 1
+				sb.WriteString(strings.Repeat("  ", indent))
+				sb.WriteString("receiver: ")
+			case *LogicalOpNode:
+				sb.WriteString(n.Kind.String())
+			case *CompareOpNode:
+				sb.WriteString(n.Kind.String())
+			case *FuncCallNode:
+				sb.WriteString(n.Callee + "()")
+
+			default:
+				sb.WriteString(n.Token().Value)
+			}
+			sb.WriteString("\n")
+			indent += 1
+		} else {
+			switch n := node.(type) {
+			case *ObjectDerefNode:
+				indent -= 1
+				sb.WriteString(strings.Repeat("  ", indent))
+				sb.WriteString("property: ")
+				sb.WriteString(n.Property)
+				sb.WriteString("\n")
+			}
+			indent -= 1
+		}
+	})
+
+	VisitExprNode(n, visitor)
+	return sb.String()
 }
