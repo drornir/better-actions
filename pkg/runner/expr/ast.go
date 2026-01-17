@@ -55,7 +55,7 @@ func (n *BoolNode) Token() *Token {
 // IntNode is node for integer literal.
 type IntNode struct {
 	// Value is value of the integer literal.
-	Value int
+	Value int64
 	tok   *Token
 }
 
@@ -310,6 +310,17 @@ func VisualizeAST(n Node) string {
 				indent += 1
 				sb.WriteString(strings.Repeat("  ", indent))
 				sb.WriteString("receiver: ")
+			case *IndexAccessNode:
+				sb.WriteString("\n")
+				indent += 1
+				sb.WriteString(strings.Repeat("  ", indent))
+				sb.WriteString("index: ")
+			case *IntNode:
+				switch parent.(type) {
+				case *IndexAccessNode:
+					indent -= 1
+				}
+				sb.WriteString(fmt.Sprintf("%d", n.Value))
 			case *LogicalOpNode:
 				sb.WriteString(n.Kind.String())
 			case *CompareOpNode:
@@ -330,6 +341,15 @@ func VisualizeAST(n Node) string {
 				sb.WriteString("property: ")
 				sb.WriteString(n.Property)
 				sb.WriteString("\n")
+			case *IndexAccessNode:
+				indent -= 1
+			case *IntNode:
+				switch parent.(type) {
+				case *IndexAccessNode:
+					sb.WriteString(strings.Repeat("  ", indent-1))
+					indent += 1
+					sb.WriteString("operand:\n")
+				}
 			}
 			indent -= 1
 		}

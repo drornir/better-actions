@@ -2,9 +2,9 @@ package expr
 
 import "fmt"
 
-// Error is an error type caused by lexing/parsing expression syntax. For more details, see
+// ParseError is an error type caused by lexing/parsing expression syntax. For more details, see
 // https://docs.github.com/en/actions/learn-github-actions/expressions
-type Error struct {
+type ParseError struct {
 	// Message is an error message
 	Message string
 	// Offset is byte offset position which caused the error
@@ -15,10 +15,10 @@ type Error struct {
 	Column int
 }
 
-func (e *Error) Error() string {
+func (e *ParseError) Error() string {
 	return fmt.Sprintf("%d:%d:%d: %s", e.Line, e.Column, e.Offset, e.Message)
 }
 
-func (e *Error) String() string {
+func (e *ParseError) String() string {
 	return e.Error()
 }

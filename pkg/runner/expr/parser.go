@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func errorAtToken(t *Token, msg string) *Error {
-	return &Error{
+func errorAtToken(t *Token, msg string) *ParseError {
+	return &ParseError{
 		Message: msg,
 		Offset:  t.Offset,
 		Line:    t.Line,
@@ -20,7 +20,7 @@ func errorAtToken(t *Token, msg string) *Error {
 type Parser struct {
 	cur   *Token
 	lexer *ExprLexer
-	err   *Error
+	err   *ParseError
 }
 
 // NewParser creates new ExprParser instance.
@@ -139,7 +139,7 @@ func (p *Parser) parseNestedExpr() Node {
 
 func (p *Parser) parseInt() Node {
 	t := p.peek()
-	i, err := strconv.ParseInt(t.Value, 0, 32)
+	i, err := strconv.ParseInt(t.Value, 0, 64)
 	if err != nil {
 		p.errorf("parsing invalid integer literal %q: %s", t.Value, err)
 		return nil
@@ -147,7 +147,7 @@ func (p *Parser) parseInt() Node {
 
 	p.next() // eat int
 
-	return &IntNode{int(i), t}
+	return &IntNode{int64(i), t}
 }
 
 func (p *Parser) parseFloat() Node {
@@ -322,7 +322,7 @@ func (p *Parser) parseLogicalOr() Node {
 }
 
 // Err returns an error which was caused while previous parsing.
-func (p *Parser) Err() *Error {
+func (p *Parser) Err() *ParseError {
 	if err := p.lexer.Err(); err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (p *Parser) Err() *Error {
 }
 
 // Parse parses token sequence lexed by a given lexer into syntax tree.
-func (p *Parser) Parse(l *ExprLexer) (Node, error) {
+func (p *Parser) Parse(l *ExprLexer) (Node, *ParseError) {
 	// Init
 	p.err = nil
 	p.lexer = l

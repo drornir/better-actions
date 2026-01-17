@@ -26,17 +26,22 @@ func TestEvaluate(t *testing.T) {
 		{"42 <= 24", "false"},
 		{"42", "42"},
 		{"'hello'", "\"hello\""},
+		{"null", "null"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.expr, func(t *testing.T) {
-			evaluator, err := expr.NewEvaluator(&expr.EvalContext{})
+			evaluator, err := expr.NewEvaluator(&expr.EvalContext{}, expr.DefaultFunctions)
 			if !assert.NoErrorf(t, err, "initializing evaluator") {
 				return
 			}
 
-			ast, err := expr.NewParser().Parse(expr.NewExprLexer(tc.expr + "}}"))
-			if !assert.NoErrorf(t, err, "parsing expression") {
+			ast, parseErr := expr.NewParser().Parse(expr.NewExprLexer(tc.expr + "}}"))
+			var errFix error
+			if parseErr != nil {
+				errFix = parseErr
+			}
+			if !assert.NoErrorf(t, errFix, "parsing expression") {
 				return
 			}
 

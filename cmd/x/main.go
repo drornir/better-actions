@@ -22,6 +22,9 @@ func main() {
 		"true || (!false && x)",
 		"42 > 24",
 		"foo(42, 43, 44)",
+		"a.b.c.d.e.f.g.h",
+		"a.b[1][2][3]",
+		"a.*",
 	}
 
 	for _, ex := range exprs {

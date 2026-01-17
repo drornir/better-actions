@@ -168,7 +168,7 @@ const (
 type ExprLexer struct {
 	src    string
 	scan   scanner.Scanner
-	lexErr *Error
+	lexErr *ParseError
 	start  scanner.Position
 }
 
@@ -192,7 +192,7 @@ func NewExprLexer(src string) *ExprLexer {
 func (lex *ExprLexer) error(msg string) {
 	if lex.lexErr == nil {
 		p := lex.scan.Pos()
-		lex.lexErr = &Error{
+		lex.lexErr = &ParseError{
 			Message: msg,
 			Offset:  p.Offset,
 			Line:    p.Line,
@@ -534,14 +534,14 @@ func (lex *ExprLexer) Offset() int {
 }
 
 // Err returns an error while lexing. When multiple errors occur, the first one is returned.
-func (lex *ExprLexer) Err() *Error {
+func (lex *ExprLexer) Err() *ParseError {
 	return lex.lexErr
 }
 
 // LexExpression lexes the given string as expression syntax. The parameter must contain '}}' which
 // represents end of expression. Otherwise this function will report an error that it encountered
 // unexpected EOF.
-func LexExpression(src string) ([]*Token, int, *Error) {
+func LexExpression(src string) ([]*Token, int, *ParseError) {
 	l := NewExprLexer(src)
 	ts := []*Token{}
 	for {
