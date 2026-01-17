@@ -108,7 +108,7 @@ func (j JSObject) GoValue() map[string]any {
 }
 
 func (j JSValue) toBool() bool {
-	return (j.Boolean.IsPresent && j.Boolean.Value == true) ||
+	return (j.Boolean.IsPresent && j.Boolean.Value) ||
 		j.Object.IsPresent ||
 		j.Array.IsPresent ||
 		(j.Float.IsPresent && j.Float.Value != 0) ||
@@ -306,7 +306,11 @@ func (j *JSValue) UnmarshalFromGo(value any) error {
 		if err := json.Unmarshal(structAsJSONString, &asJSONMap); err != nil {
 			return ErrJSUnmarshal{Msg: "error unmarshalling struct", Value: value}
 		}
-		return j.UnmarshalFromGo(asJSONMap)
+		asLowercaseJSONMap := make(map[string]any)
+		for k, v := range asJSONMap {
+			asLowercaseJSONMap[strings.ToLower(k)] = v
+		}
+		return j.UnmarshalFromGo(asLowercaseJSONMap)
 
 	case reflect.Map:
 		o := JSObject{}
@@ -320,7 +324,7 @@ func (j *JSValue) UnmarshalFromGo(value any) error {
 			if key.Kind() != reflect.String {
 				return ErrJSUnmarshal{Msg: fmt.Sprintf("unexpected key type %s while parsing map", key.Kind()), Value: value}
 			}
-			mapValue[key.String()] = rv.MapIndex(key).Interface()
+			mapValue[strings.ToLower(key.String())] = rv.MapIndex(key).Interface()
 		}
 		if err := o.UnmarshalFromGoMap(mapValue); err != nil {
 			return oops.Join(ErrJSUnmarshal{Msg: "error parsing map", Value: value}, err)
@@ -408,7 +412,7 @@ func (j JSValue) MarshalJSON() ([]byte, error) {
 	case j.Null.IsPresent:
 		return []byte("null"), nil
 	case j.Undefined.IsPresent:
-		return []byte("undefined"), nil
+		return []byte("null"), nil
 	default:
 		return nil, ErrJSMarshal{Msg: "error marshaling value", Value: j}
 	}

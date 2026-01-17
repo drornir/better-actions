@@ -4,30 +4,30 @@ package expr
 // It includes information about the workflow, job, steps, and other metadata.
 type EvalContext struct {
 	// Github contains information about the workflow run and the event that triggered it.
-	Github GithubContext
+	Github GithubContext `json:"github"`
 	// Env contains environment variables set in the workflow, job, or step.
-	Env map[string]string
+	Env map[string]string `json:"env"`
 	// Job contains information about the currently running job.
-	Job JobContext
+	Job JobContext `json:"job"`
 	// Jobs contains information about jobs in a reusable workflow.
 	// This is only available in reusable workflows.
-	Jobs JobsContext
+	Jobs JobsContext `json:"jobs"`
 	// Steps contains information about the steps that have been run in the current job.
-	Steps StepsContext
+	Steps StepsContext `json:"steps"`
 	// Runner contains information about the runner that is executing the current job.
-	Runner RunnerContext
+	Runner RunnerContext `json:"runner"`
 	// Secrets contains secrets available to the workflow run.
-	Secrets SecretsContext
+	Secrets SecretsContext `json:"secrets"`
 	// Vars contains variables available to the workflow run.
-	Vars map[string]string
+	Vars map[string]string `json:"vars"`
 	// Strategy contains information about the matrix execution strategy.
-	Strategy StrategyContext
+	Strategy StrategyContext `json:"strategy"`
 	// Matrix contains information about the specific matrix combination for the current job.
-	Matrix JSObject
+	Matrix JSObject `json:"matrix"`
 	// Needs contains outputs and results from jobs that the current job depends on.
-	Needs map[string]NeedsContext
+	Needs map[string]NeedsContext `json:"needs"`
 	// Inputs contains inputs passed to the workflow (dispatch inputs or reusable workflow inputs).
-	Inputs JSObject
+	Inputs JSObject `json:"inputs"`
 }
 
 // GithubContext is modeled after https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
