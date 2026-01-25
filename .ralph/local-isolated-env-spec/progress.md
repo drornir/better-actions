@@ -1,64 +1,69 @@
-# Implementation Plan & Progress
+# Project: Local Semi-Isolated Environment
 
-## Plan
+## Implementation Plan
 
-### 1. Update `Job` Struct (`pkg/runner/job.go`)
+### Phase 1: Core Workspace Isolation (Completed)
 
+#### 1. Update `Job` Struct (`pkg/runner/job.go`)
 - [x] Add `WorkspaceDir string` to the `Job` struct.
-- [x] This will store the absolute path to the temporary workspace directory created for the job.
+- [x] This stores the absolute path to the temporary workspace directory.
 
-### 2. Implement Workspace Creation (`pkg/runner/job.go`)
-
+#### 2. Implement Workspace Creation (`pkg/runner/job.go`)
 - [x] In `prepareJob`:
-  - [x] Create a temporary directory using `os.MkdirTemp` (pattern: `bact-workspace-<jobName>-`).
-  - [x] Assign this path to `j.WorkspaceDir`.
-  - [x] Add a cleanup function to `os.RemoveAll` this directory (deferred until job completion).
-  - [x] Set the `GITHUB_WORKSPACE` environment variable in `j.stepsEnv` (or `InitialEnv`) to this path.
+  - [x] Create temp directory (`bact-workspace-<jobName>-`).
+  - [x] Assign to `j.WorkspaceDir`.
+  - [x] Add cleanup (deferred `os.RemoveAll`).
+  - [x] Set `GITHUB_WORKSPACE` in env.
 
-### 3. Propagate Workspace to Steps (`pkg/runner/job.go`, `pkg/runner/step.go`)
+#### 3. Propagate Workspace to Steps (`pkg/runner/job.go`, `pkg/runner/step.go`)
+- [x] Update `StepContext` to include `WorkspaceDir`.
+- [x] Update `newStepContext` to populate `WorkspaceDir`.
 
-- [x] Update `StepContext` struct in `pkg/runner/step.go` to include `WorkspaceDir string`.
-- [x] Update `newStepContext` in `pkg/runner/job.go` to populate `WorkspaceDir` from the `Job`.
-
-### 4. Execute Steps in Workspace (`pkg/runner/step-run.go`)
-
+#### 4. Execute Steps in Workspace (`pkg/runner/step-run.go`)
 - [x] In `StepRun.Run`:
-  - [x] Determine the working directory for the shell command.
-  - [x] If `step.WorkingDirectory` is explicitly set in YAML, use it (resolved relative to workspace?). _Refinement: GitHub Actions defaults to GITHUB_WORKSPACE. If `working-directory` is relative, it's relative to GITHUB_WORKSPACE._
-  - [x] If `step.WorkingDirectory` is empty, use `step.Context.WorkspaceDir`.
-  - [x] Pass this directory to `shell.NewCommand` via `CommandOpts.Dir`.
+  - [x] Default working directory to `s.Context.WorkspaceDir`.
+  - [x] Resolve relative `working-directory` against `WorkspaceDir`.
+  - [x] Pass directory to `shell.NewCommand`.
 
-### 5. Verification
+#### 5. Basic Verification
+- [x] Create `examples/workflows/isolation_test.yaml` (write file, print pwd).
+- [x] Create `examples/workflows/isolation_test.go` (assert file location, `GITHUB_WORKSPACE`).
 
-- [x] Create a new test workflow `examples/workflows/isolation_test.yaml` (or similar) that:
-  - [x] Writes a file to the current directory (`echo "hello" > artifact.txt`).
+### Phase 2: Environment Isolation (Pending)
 
-  - [x] Prints the current working directory (`pwd`).
+#### 6. Verify Environment Variables (Intra-Job)
+- [ ] **Test: Persistence** (`examples/workflows/env_persistence.yaml`)
+  - [ ] Step 1: `echo "MY_VAR=persisted" >> $GITHUB_ENV`
+  - [ ] Step 2: Verify `$MY_VAR` is "persisted".
+- [ ] **Test: Path Modification**
+  - [ ] Step 1: Add directory to `$GITHUB_PATH`.
+  - [ ] Step 2: Verify binary in that directory is executable.
 
-- [x] Create a Go test `examples/workflows/isolation_test.go` that:
-  - [x] Runs the workflow.
+#### 7. Verify Job Isolation (Inter-Job & Future Proofing)
+*Note: Even if jobs run sequentially now, these tests ensure future concurrency doesn't break isolation.*
+- [ ] **Test: Environment Isolation** (`examples/workflows/job_isolation_env.yaml`)
+  - [ ] Job A: Export `JOB_VAR=A`.
+  - [ ] Job B: Verify `JOB_VAR` is unset/empty.
+- [ ] **Test: File System Isolation** (`examples/workflows/job_isolation_fs.yaml`)
+  - [ ] Job A: Create `workspace_file.txt` with content "Job A".
+  - [ ] Job B: Verify `workspace_file.txt` does **not** exist.
+  - [ ] Job B: Create `workspace_file.txt` with content "Job B" (ensure no collision).
 
-  - [x] Asserts that `artifact.txt` was created in the temp dir, **not** in the repo root.
+#### 8. Verify Host Isolation
+- [ ] **Test: Host Protection** (`examples/workflows/host_protection.yaml`)
+  - [ ] Attempt to modify `PATH` or important env vars in a job.
+  - [ ] Assert host process environment remains unchanged.
 
-  - [x] Asserts that `GITHUB_WORKSPACE` was set correctly.
+### Phase 3: Refinement & Safety (Pending)
 
-- [ ] Create `examples/workflows/env_isolation_test.yaml` and `examples/workflows/env_isolation_test.go` to verify:
-  - [ ] `GITHUB_ENV` updates persist across steps within a job.
+#### 9. Directory Structure & Safety
+- [ ] **Refactor: Validate `working-directory`**
+  - [ ] In `StepRun.Run`, check if `s.Config.WorkingDirectory` is absolute.
+  - [ ] If absolute, return an error.
+  - [ ] **Test:** `examples/workflows/safety_abs_path.yaml` (should fail).
 
-  - [ ] `GITHUB_ENV` updates do NOT leak to other jobs.
-
-  - [ ] `GITHUB_ENV` updates do NOT leak to the host process.
-
-## Task List
-
-- [x] Update `Job` struct
-
-- [x] Implement `prepareJob` workspace creation
-
-- [x] Update `StepContext`
-
-- [x] Update `StepRun` execution logic
-
-- [x] Add verification test
-
-- [x] Add environment isolation verification tests
+- [ ] **Refactor: Split `jobFilesRoot`**
+  - [ ] In `prepareJob`, create `workspace/` and `steps/` subdirectories inside `jobFilesRoot`.
+  - [ ] Point `j.WorkspaceDir` and `GITHUB_WORKSPACE` to `.../workspace`.
+  - [ ] Update `newStepContext` to create step files inside `.../steps/<stepID>`.
+  - [ ] **Test:** Verify `GITHUB_ENV` file path is NOT inside `GITHUB_WORKSPACE`.

@@ -1,5 +1,5 @@
 study .ralph/local-isolated-env-spec/spec.md
-study .ralph/local-isolated-env-spec/progress.md and pick the most important thing to do
+study .ralph/local-isolated-env-spec/progress.md and pick the most important thing to do. Only pick one task and complete it. DO NOT BE EAGER! just one task and return
 
 IMPORTANT:
 
