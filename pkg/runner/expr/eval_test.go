@@ -140,7 +140,7 @@ func TestEvaluate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.expr, func(t *testing.T) {
-			evaluator, err := expr.NewEvaluator(prContext(t), expr.DefaultFunctions)
+			evaluator, err := expr.NewLowLevelEvaluator(prContext(t), expr.DefaultFunctions)
 			if !assert.NoErrorf(t, err, "initializing evaluator") {
 				return
 			}

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -209,13 +208,13 @@ func funcEndsWith(args ...JSValue) (JSValue, error) {
 // Variables in the string are specified using the {N} syntax, where N is an integer.
 // Escape curly braces using double braces.
 func funcFormat(args ...JSValue) (JSValue, error) {
-	if len(args) < 2 {
-		return JSValue{}, oops.Errorf("format requires at least 2 arguments, got %d", len(args))
+	if len(args) < 1 {
+		return JSValue{}, oops.Errorf("format requires at least 1 argument, got %d", len(args))
 	}
 
 	formatStr, err := castToString(args[0])
 	if err != nil {
-		return JSValue{}, oops.Wrapf(err, "format: cannot cast format string to string")
+		return JSValue{}, oops.Wrapf(err, "format: cannot cast first argument to string")
 	}
 
 	// First, replace escaped braces with placeholders
@@ -224,24 +223,51 @@ func funcFormat(args ...JSValue) (JSValue, error) {
 		closeBracePlaceholder = "\x00CLOSE_BRACE\x00"
 	)
 
-	result := strings.ReplaceAll(formatStr, "{{", openBracePlaceholder)
-	result = strings.ReplaceAll(result, "}}", closeBracePlaceholder)
+	escaped := strings.ReplaceAll(formatStr, "{{", openBracePlaceholder)
+	escaped = strings.ReplaceAll(escaped, "}}", closeBracePlaceholder)
 
 	// Replace {N} placeholders with corresponding argument values
-	for i := 1; i < len(args); i++ {
-		placeholder := fmt.Sprintf("{%d}", i-1)
-		replacement, err := castToString(args[i])
-		if err != nil {
-			return JSValue{}, oops.Wrapf(err, "format: cannot cast argument %d to string", i-1)
+	args = args[1:]
+	asRunes := []rune(escaped)
+	result := strings.Builder{}
+	indexForDiagnostics := 0
+	for len(asRunes) > 0 {
+		curr := asRunes[0]
+		if curr != '{' {
+			result.WriteRune(curr)
+			asRunes = asRunes[1:]
+			indexForDiagnostics++
+			continue
 		}
-		result = strings.ReplaceAll(result, placeholder, replacement)
+		closingIdx := strings.Index(string(asRunes), "}")
+		if closingIdx == -1 {
+			return JSValue{}, oops.Errorf("format: missing closing brace for opening brace in index %d", indexForDiagnostics)
+		}
+		number := string(asRunes[1:closingIdx])
+		if number == "" {
+			return JSValue{}, oops.Errorf("format: empty placeholder")
+		}
+		index, err := strconv.Atoi(number)
+		if err != nil {
+			return JSValue{}, oops.Errorf("format: invalid placeholder %s - must be an integer with no spaces", number)
+		}
+		if index < 0 || index >= len(args) {
+			return JSValue{}, oops.Errorf("format: index %d out of range", index)
+		}
+		replacement, err := castToString(args[index])
+		if err != nil {
+			return JSValue{}, oops.Wrapf(err, "format: cannot cast argument %d to string", index)
+		}
+		result.WriteString(replacement)
+		asRunes = asRunes[closingIdx+1:]
+		indexForDiagnostics += closingIdx + 1
 	}
 
 	// Restore escaped braces
-	result = strings.ReplaceAll(result, openBracePlaceholder, "{")
-	result = strings.ReplaceAll(result, closeBracePlaceholder, "}")
+	final := strings.ReplaceAll(result.String(), openBracePlaceholder, "{")
+	final = strings.ReplaceAll(final, closeBracePlaceholder, "}")
 
-	return JSValue{String: Some(result)}, nil
+	return JSValue{String: Some(final)}, nil
 }
 
 // funcJoin implements the join(array, optionalSeparator) function.

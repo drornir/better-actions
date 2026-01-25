@@ -5,9 +5,9 @@ import (
 	"maps"
 	"os"
 	"strings"
-
-	"github.com/drornir/better-actions/pkg/yamls"
 )
+
+type TODO any
 
 type Runner struct {
 	Console io.Writer
@@ -18,15 +18,6 @@ func New(console io.Writer, envFrom EnvFrom) *Runner {
 	return &Runner{
 		Console: console,
 		Env:     envFrom(),
-	}
-}
-
-func (r *Runner) NewJob(name string, yaml *yamls.Job) *Job {
-	return &Job{
-		Name:      name,
-		Console:   r.Console,
-		Config:    yaml,
-		RunnerEnv: r.Env,
 	}
 }
 

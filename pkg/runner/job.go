@@ -23,7 +23,8 @@ type Job struct {
 	Name         string
 	Console      io.Writer
 	Config       *yamls.Job
-	RunnerEnv    map[string]string
+	InitialEnv   map[string]string
+	Workflow     *WorkflowState
 	jobFilesRoot *os.Root
 	debugEnabled bool
 
@@ -39,6 +40,16 @@ type Job struct {
 	stepSummaries     map[string]string
 
 	secretsMasker SecretsMasker
+}
+
+func NewJob(name string, yaml *yamls.Job, wf *WorkflowState, console io.Writer) *Job {
+	return &Job{
+		Name:       name,
+		Console:    console,
+		Config:     yaml,
+		InitialEnv: wf.Env,
+		Workflow:   wf,
+	}
 }
 
 func (j *Job) Run(ctx context.Context) error {
@@ -98,7 +109,7 @@ func (j *Job) Run(ctx context.Context) error {
 			return runErr
 		}
 		if stepWriteTo.Err() != nil {
-			return oopser.Wrapf(stepWriteTo.Err(), "process step output")
+			return oopser.Wrapf(stepWriteTo.Err(), "processing step output")
 		}
 
 		if stepResult.Status == StepStatusFailed {
@@ -117,7 +128,7 @@ func (j *Job) Run(ctx context.Context) error {
 }
 
 func (j *Job) AllowUnsecureCommands() bool {
-	if ok, _ := strconv.ParseBool(j.RunnerEnv[envActionsAllowUnsecureCommands]); ok {
+	if ok, _ := strconv.ParseBool(j.InitialEnv[envActionsAllowUnsecureCommands]); ok {
 		return true
 	}
 	j.stepsEnvLock.RLock()
@@ -171,7 +182,7 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 		return nil, oopser.Wrapf(err, "opening step directory")
 	}
 
-	env := maps.Clone(j.RunnerEnv)
+	env := maps.Clone(j.InitialEnv)
 	if env == nil {
 		env = make(map[string]string)
 	}

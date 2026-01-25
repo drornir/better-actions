@@ -12,17 +12,17 @@ import (
 	"github.com/samber/oops"
 )
 
-type Evaluator struct {
+type LowLevelEvaluator struct {
 	ContextObject JSObject
 	Functions     FunctionStore
 }
 
-func NewEvaluator(evalContext *EvalContext, funcs FunctionStore) (*Evaluator, error) {
+func NewLowLevelEvaluator(evalContext *EvalContext, funcs FunctionStore) (*LowLevelEvaluator, error) {
 	contextObject, err := jsObjectFromEvalContext(evalContext)
 	if err != nil {
-		return nil, oops.Wrapf(err, "failed to create JSObject from EvalContext")
+		return nil, oops.Wrapf(err, "failed to parse EvalContext")
 	}
-	return &Evaluator{
+	return &LowLevelEvaluator{
 		ContextObject: contextObject,
 		Functions:     funcs,
 	}, nil
@@ -40,7 +40,7 @@ func jsObjectFromEvalContext(evalContext *EvalContext) (JSObject, error) {
 	return jso.Object.Value, nil
 }
 
-func (e *Evaluator) Evaluate(expression Node) (JSValue, error) {
+func (e *LowLevelEvaluator) Evaluate(expression Node) (JSValue, error) {
 	switch expr := expression.(type) {
 
 	case *ObjectDerefNode, *ArrayDerefNode, *IndexAccessNode:
@@ -161,7 +161,7 @@ func (e *Evaluator) Evaluate(expression Node) (JSValue, error) {
 	}
 }
 
-func (e *Evaluator) evaluateAccessPath(expression Node) (root Node, p JSPath, er error) {
+func (e *LowLevelEvaluator) evaluateAccessPath(expression Node) (root Node, p JSPath, er error) {
 	var resultReversed []JSPathSegment
 	currentExpr := expression
 	const maxDepth = 1_000_000
@@ -196,7 +196,7 @@ func (e *Evaluator) evaluateAccessPath(expression Node) (root Node, p JSPath, er
 	return nil, nil, oops.Errorf("potential infinite recursion detected while evaluating access path at %s", expression.Token())
 }
 
-func (e *Evaluator) evaluateFunctionCall(expr *FuncCallNode) (JSValue, error) {
+func (e *LowLevelEvaluator) evaluateFunctionCall(expr *FuncCallNode) (JSValue, error) {
 	if slices.Contains([]string{"success", "always", "cancelled", "failure"}, strings.ToLower(expr.Callee)) {
 		return e.evaluateStatusFunction(expr.Callee)
 	}
@@ -227,7 +227,7 @@ func (e *Evaluator) evaluateFunctionCall(expr *FuncCallNode) (JSValue, error) {
 	return v, nil
 }
 
-func (e *Evaluator) evaluateStatusFunction(callee string) (JSValue, error) {
+func (e *LowLevelEvaluator) evaluateStatusFunction(callee string) (JSValue, error) {
 	panic("unimplemented")
 }
 

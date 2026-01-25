@@ -34,7 +34,7 @@ func TestWorkflowCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to read workflow:", err)
 	}
-	wfState, err := run.RunWorkflow(ctx, wf)
+	wfState, err := run.RunWorkflow(ctx, wf,runner.RunWorkflowParams{})
 	if err != nil {
 		t.Fatal("failed to run workflow:", errParse(err))
 	}

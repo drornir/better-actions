@@ -93,6 +93,6 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 
 	rnr := runner.New(os.Stdout, runner.EnvFromOS())
 
-	_, err2 := rnr.RunWorkflow(ctx, wf)
+	_, err2 := rnr.RunWorkflow(ctx, wf, runner.RunWorkflowParams{})
 	return err2
 }

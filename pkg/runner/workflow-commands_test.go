@@ -217,7 +217,7 @@ func TestProcessWorkflowCommandFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(summaryPath, []byte("## summary\n"), 0o644))
 
 	job := &Job{
-		RunnerEnv:     map[string]string{"PATH": "/usr/bin"},
+		InitialEnv:    map[string]string{"PATH": "/usr/bin"},
 		stepsEnv:      make(map[string]string),
 		stepsPath:     nil,
 		stepOutputs:   make(map[string]map[string]string),

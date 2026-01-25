@@ -95,7 +95,7 @@ func TestProcessWorkflowCommandFilesEnv(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("FOO=bar\n"), 0o644))
 
 	job := &Job{
-		RunnerEnv:     map[string]string{"EXISTING": "1"},
+		InitialEnv:    map[string]string{"EXISTING": "1"},
 		stepsEnv:      make(map[string]string),
 		stepsPath:     nil,
 		stepOutputs:   make(map[string]map[string]string),
@@ -108,6 +108,6 @@ func TestProcessWorkflowCommandFilesEnv(t *testing.T) {
 	}
 
 	require.NoError(t, job.loadWFCmdFilesAfterStep(ctx, stepCtx))
-	require.Equal(t, "1", job.RunnerEnv["EXISTING"])
+	require.Equal(t, "1", job.InitialEnv["EXISTING"])
 	require.Equal(t, "bar", job.stepsEnv["FOO"])
 }
