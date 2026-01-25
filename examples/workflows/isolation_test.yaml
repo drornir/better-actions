@@ -1,0 +1,13 @@
+name: Isolation Test
+jobs:
+  test-isolation:
+    runs-on: local
+    steps:
+      - name: Create Artifact
+        run: echo "hello" > artifact.txt
+      - name: Check Workspace
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          pwd
+      - name: Verify Artifact Exists in PWD
+        run: cat artifact.txt

@@ -217,11 +217,12 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	}
 
 	return &StepContext{
-		StepID:     stpID,
-		Console:    j.Console,
-		IndexInJob: indexInJob,
-		WorkingDir: wd,
-		Env:        env,
+		StepID:       stpID,
+		Console:      j.Console,
+		IndexInJob:   indexInJob,
+		WorkingDir:   wd,
+		WorkspaceDir: j.WorkspaceDir,
+		Env:          env,
 	}, nil
 }
 

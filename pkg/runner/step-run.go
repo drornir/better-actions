@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/kballard/go-shellquote"
@@ -49,9 +50,17 @@ func (s *StepRun) Run(ctx context.Context, writeTo io.Writer) (StepResult, error
 	if err != nil {
 		return StepResult{}, oopser.With("step.shell.bin", bin).With("step.shell.args", args).Wrapf(err, "initializing shell")
 	}
+
+	workDir := s.Config.WorkingDirectory
+	if workDir == "" {
+		workDir = s.Context.WorkspaceDir
+	} else if !filepath.IsAbs(workDir) {
+		workDir = filepath.Join(s.Context.WorkspaceDir, workDir)
+	}
+
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{
 		ExtraEnv: s.Context.Env,
-		Dir:      s.Config.WorkingDirectory,
+		Dir:      workDir,
 		StdOut:   writeTo,
 		StdErr:   writeTo,
 	})
