@@ -26,6 +26,7 @@ type Job struct {
 	InitialEnv   map[string]string
 	Workflow     *WorkflowState
 	jobFilesRoot *os.Root
+	WorkspaceDir string
 	debugEnabled bool
 
 	stepsEnvLock      sync.RWMutex
@@ -152,6 +153,14 @@ func (j *Job) prepareJob(
 	j.stepOutputs = make(map[string]map[string]string)
 	j.stepStates = make(map[string]map[string]string)
 	j.stepSummaries = make(map[string]string)
+
+	workspaceDir, err := os.MkdirTemp(os.TempDir(), "bact-workspace-"+jobName+"-")
+	if err != nil {
+		return cleanup.Noop, oopser.Wrapf(err, "creating workspace directory")
+	}
+	cleanup.Add(func() { os.RemoveAll(workspaceDir) })
+	j.WorkspaceDir = workspaceDir
+	j.stepsEnv["GITHUB_WORKSPACE"] = workspaceDir
 
 	jobFilesPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
 	if err != nil {
