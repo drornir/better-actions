@@ -44,10 +44,10 @@
 - [ ] **Test: Environment Isolation** (`examples/workflows/job_isolation_env.yaml`)
   - [ ] Job A: Export `JOB_VAR=A`.
   - [ ] Job B: Verify `JOB_VAR` is unset/empty.
-- [ ] **Test: File System Isolation** (`examples/workflows/job_isolation_fs.yaml`)
-  - [ ] Job A: Create `workspace_file.txt` with content "Job A".
-  - [ ] Job B: Verify `workspace_file.txt` does **not** exist.
-  - [ ] Job B: Create `workspace_file.txt` with content "Job B" (ensure no collision).
+- [x] **Test: File System Isolation** (`examples/workflows/job_isolation_fs.yaml`)
+  - [x] Job A: Create `workspace_file.txt` with content "Job A".
+  - [x] Job B: Verify `workspace_file.txt` does **not** exist.
+  - [x] Job B: Create `workspace_file.txt` with content "Job B" (ensure no collision).
 
 #### 8. Verify Host Isolation
 - [ ] **Test: Host Protection** (`examples/workflows/host_protection.yaml`)
