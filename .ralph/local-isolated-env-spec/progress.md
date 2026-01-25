@@ -62,8 +62,8 @@
   - [x] If absolute, return an error.
   - [x] **Test:** `examples/workflows/safety_abs_path.yaml` (should fail).
 
-- [ ] **Refactor: Split `jobFilesRoot`**
-  - [ ] In `prepareJob`, create `workspace/` and `steps/` subdirectories inside `jobFilesRoot`.
-  - [ ] Point `j.WorkspaceDir` and `GITHUB_WORKSPACE` to `.../workspace`.
-  - [ ] Update `newStepContext` to create step files inside `.../steps/<stepID>`.
-  - [ ] **Test:** Verify `GITHUB_ENV` file path is NOT inside `GITHUB_WORKSPACE`.
+- [x] **Refactor: Split `jobFilesRoot`**
+  - [x] In `prepareJob`, create `workspace/` and `steps/` subdirectories inside `jobFilesRoot`.
+  - [x] Point `j.WorkspaceDir` and `GITHUB_WORKSPACE` to `.../workspace`.
+  - [x] Update `newStepContext` to create step files inside `.../steps/<stepID>`.
+  - [x] **Test:** Verify `GITHUB_ENV` file path is NOT inside `GITHUB_WORKSPACE`.
