@@ -7,4 +7,6 @@ IMPORTANT:
 - minimize the amount of text you read by utilizing e.g ripgrep.
 - author new tests like the ones in examples/workflows and / or unit tests.
 - update the progress file when the task is done
+- optionally update the spec or progress files if you feel changes need to be made. do not create new files with unimportant data.
 - when tests pass, commit and push
+- after push, stop and return control to user

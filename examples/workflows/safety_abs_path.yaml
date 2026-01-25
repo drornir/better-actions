@@ -1,0 +1,9 @@
+name: Safety Absolute Path Test
+on: push
+jobs:
+  test-abs-path:
+    runs-on: local
+    steps:
+      - name: Try to use absolute path
+        run: echo "This should fail"
+        working-directory: /tmp

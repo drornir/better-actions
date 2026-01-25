@@ -57,10 +57,10 @@
 ### Phase 3: Refinement & Safety (Pending)
 
 #### 9. Directory Structure & Safety
-- [ ] **Refactor: Validate `working-directory`**
-  - [ ] In `StepRun.Run`, check if `s.Config.WorkingDirectory` is absolute.
-  - [ ] If absolute, return an error.
-  - [ ] **Test:** `examples/workflows/safety_abs_path.yaml` (should fail).
+- [x] **Refactor: Validate `working-directory`**
+  - [x] In `StepRun.Run`, check if `s.Config.WorkingDirectory` is absolute.
+  - [x] If absolute, return an error.
+  - [x] **Test:** `examples/workflows/safety_abs_path.yaml` (should fail).
 
 - [ ] **Refactor: Split `jobFilesRoot`**
   - [ ] In `prepareJob`, create `workspace/` and `steps/` subdirectories inside `jobFilesRoot`.
