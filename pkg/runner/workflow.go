@@ -6,16 +6,11 @@ import (
 
 	"github.com/drornir/better-actions/pkg/ctxkit"
 	"github.com/drornir/better-actions/pkg/runner/expr"
+	"github.com/drornir/better-actions/pkg/types"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-type RunWorkflowParams struct {
-	Github TODO
-	Event  TODO
-	Inputs TODO
-}
-
-func (r *Runner) RunWorkflow(ctx context.Context, wf *yamls.Workflow, params RunWorkflowParams) (*WorkflowState, error) {
+func (r *Runner) RunWorkflow(ctx context.Context, wf *yamls.Workflow, wfContext *types.WorkflowContexts) (*WorkflowState, error) {
 	ctx, _, oopser := ctxkit.With(ctx, "workflow", wf.Name)
 	jobs := wf.Jobs
 
@@ -23,7 +18,7 @@ func (r *Runner) RunWorkflow(ctx context.Context, wf *yamls.Workflow, params Run
 		Name:   wf.Name,
 		Jobs:   make(map[string]*Job, len(jobs)),
 		Env:    nil, // need to run through tempalting
-		Inputs: params.Inputs,
+		Inputs: wfContext.Inputs,
 	}
 
 	{

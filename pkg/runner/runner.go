@@ -44,6 +44,12 @@ func EnvFromEmpty() EnvFrom {
 	}
 }
 
+func EnvFromMap(env map[string]string) EnvFrom {
+	return func() map[string]string {
+		return env
+	}
+}
+
 func EnvFromChain(envs ...EnvFrom) EnvFrom {
 	env := make(map[string]string)
 	for _, from := range envs {

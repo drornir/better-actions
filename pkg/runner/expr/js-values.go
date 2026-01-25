@@ -384,6 +384,14 @@ func (j *JSObject) UnmarshalFromGoMap(mapValue map[string]any) error {
 	return nil
 }
 
+func (j *JSValue) UnmarshalJSON(data []byte) error {
+	var a any
+	if err := json.Unmarshal(data, &a); err != nil {
+		return oops.Wrapf(err, "error parsing JSON as Go object")
+	}
+	return oops.Wrapf(j.UnmarshalFromGo(a), "error unmarshalling Go object as JSValue")
+}
+
 // marshal json
 
 type ErrJSMarshal struct {

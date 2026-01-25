@@ -21,7 +21,7 @@ var (
 
 	rootCmd = &cobra.Command{
 		Use:   "bact [global flags] [command]",
-		Short: "bact is the cli entrypoint of the better-actions",
+		Short: "bact is the cli entrypoint of better-actions",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			config.SetGlobalConfig(rootConfig)
 			log.SetGlobal(log.New(log.MakeSLogger(log.LoggerOptions{
@@ -50,7 +50,7 @@ func init() {
 	prepflag := pflag.NewFlagSet("pre", pflag.ContinueOnError)
 	prepflag.StringP("config", "c", "bact.yaml", "path to config file")
 	prepflag.Usage = func() {}
-	prepflag.ParseErrorsWhitelist.UnknownFlags = true
+	prepflag.ParseErrorsAllowlist.UnknownFlags = true
 	if err := prepflag.Parse(os.Args[1:]); err != nil {
 		var notExistErr *pflag.NotExistError
 		if !errors.Is(err, pflag.ErrHelp) && !errors.As(err, &notExistErr) {

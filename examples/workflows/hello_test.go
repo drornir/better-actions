@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/drornir/better-actions/pkg/runner"
+	"github.com/drornir/better-actions/pkg/types"
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
@@ -31,7 +32,7 @@ func TestHelloWorkflow(t *testing.T) {
 		t.Fatal("failed to read workflow:", err)
 	}
 
-	if _, err := run.RunWorkflow(ctx, wf, runner.RunWorkflowParams{}); err != nil {
+	if _, err := run.RunWorkflow(ctx, wf, &types.WorkflowContexts{}); err != nil {
 		t.Fatal("failed to run workflow:", err)
 	}
 
