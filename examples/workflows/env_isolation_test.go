@@ -22,7 +22,7 @@ func TestEnvIsolationWorkflow(t *testing.T) {
 	console := io.MultiWriter(consoleBuffer, t.Output())
 
 	// Ensure the test variable is NOT in the host environment
-	os.Unsetenv("TEST_VAR")
+	os.Unsetenv("JOB_VAR")
 
 	run := runner.New(
 		console,
@@ -44,6 +44,6 @@ func TestEnvIsolationWorkflow(t *testing.T) {
 
 	// Verify persistence within job-persistence (implicitly verified by the shell script exit code)
 	// Verify isolation from host
-	_, exists := os.LookupEnv("TEST_VAR")
-	assert.False(t, exists, "TEST_VAR should not leak to host process")
+	_, exists := os.LookupEnv("JOB_VAR")
+	assert.False(t, exists, "JOB_VAR should not leak to host process")
 }

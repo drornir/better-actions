@@ -4,11 +4,11 @@ jobs:
     runs-on: local
     steps:
       - name: Set Environment Variable
-        run: echo "TEST_VAR=persisted_value" >> $GITHUB_ENV
+        run: echo "JOB_VAR=A" >> $GITHUB_ENV
       - name: Verify Environment Variable Persistence
         run: |
-          if [ "$TEST_VAR" != "persisted_value" ]; then
-            echo "TEST_VAR is not set correctly in subsequent step: $TEST_VAR"
+          if [ "$JOB_VAR" != "A" ]; then
+            echo "JOB_VAR is not set correctly in subsequent step: $JOB_VAR"
             exit 1
           fi
 
@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Verify Environment Variable Isolation
         run: |
-          if [ -n "$TEST_VAR" ]; then
-            echo "TEST_VAR should not be set in a different job: $TEST_VAR"
+          if [ -n "$JOB_VAR" ]; then
+            echo "JOB_VAR should not be set in a different job: $JOB_VAR"
             exit 1
           fi

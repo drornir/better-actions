@@ -29,7 +29,7 @@
 - [x] Create `examples/workflows/isolation_test.yaml` (write file, print pwd).
 - [x] Create `examples/workflows/isolation_test.go` (assert file location, `GITHUB_WORKSPACE`).
 
-### Phase 2: Environment Isolation (Pending)
+### Phase 2: Environment Isolation (Completed)
 
 #### 6. Verify Environment Variables (Intra-Job)
 - [x] **Test: Persistence** (`examples/workflows/env_persistence.yaml`)
@@ -41,20 +41,20 @@
 
 #### 7. Verify Job Isolation (Inter-Job & Future Proofing)
 *Note: Even if jobs run sequentially now, these tests ensure future concurrency doesn't break isolation.*
-- [ ] **Test: Environment Isolation** (`examples/workflows/job_isolation_env.yaml`)
-  - [ ] Job A: Export `JOB_VAR=A`.
-  - [ ] Job B: Verify `JOB_VAR` is unset/empty.
+- [x] **Test: Environment Isolation** (`examples/workflows/env_isolation_test.yaml`)
+  - [x] Job A: Export `JOB_VAR=A`.
+  - [x] Job B: Verify `JOB_VAR` is unset/empty.
 - [x] **Test: File System Isolation** (`examples/workflows/job_isolation_fs.yaml`)
   - [x] Job A: Create `workspace_file.txt` with content "Job A".
   - [x] Job B: Verify `workspace_file.txt` does **not** exist.
   - [x] Job B: Create `workspace_file.txt` with content "Job B" (ensure no collision).
 
 #### 8. Verify Host Isolation
-- [ ] **Test: Host Protection** (`examples/workflows/host_protection.yaml`)
-  - [ ] Attempt to modify `PATH` or important env vars in a job.
-  - [ ] Assert host process environment remains unchanged.
+- [x] **Test: Host Protection** (`examples/workflows/host_protection.yaml`)
+  - [x] Attempt to modify `PATH` or important env vars in a job.
+  - [x] Assert host process environment remains unchanged.
 
-### Phase 3: Refinement & Safety (Pending)
+### Phase 3: Refinement & Safety (Completed)
 
 #### 9. Directory Structure & Safety
 - [x] **Refactor: Validate `working-directory`**

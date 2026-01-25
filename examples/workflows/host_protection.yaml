@@ -1,0 +1,18 @@
+name: Host Environment Protection Test
+jobs:
+  host-protection:
+    runs-on: local
+    steps:
+      - name: Update PATH inside job
+        run: |
+          mkdir -p /tmp/bact-host-test
+          echo "PATH=/tmp/bact-host-test:$PATH" >> $GITHUB_ENV
+      - name: Verify PATH updated in job
+        run: |
+          case "$PATH" in
+            /tmp/bact-host-test:*) echo "PATH updated in job" ;;
+            *)
+              echo "PATH not updated in job: $PATH"
+              exit 1
+              ;;
+          esac
