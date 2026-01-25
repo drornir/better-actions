@@ -43,7 +43,7 @@ func (s *Shell) NewCommand(ctx context.Context, opts CommandOpts) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, s.bin, args...)
 	cmd.Stdout = opts.StdOut
 	cmd.Stderr = opts.StdErr
-	cmd.Env = os.Environ()
+	cmd.Env = os.Environ() // TODO remove
 
 	cmd.Dir = opts.Dir
 	if opts.ExtraEnv != nil {

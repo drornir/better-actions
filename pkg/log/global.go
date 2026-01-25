@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 )
 
@@ -11,7 +12,7 @@ var (
 )
 
 func init() {
-	globalLogger = New(NoopSlogger)
+	globalLogger = New(NoopSLogger())
 }
 
 func GG() *Logger {
@@ -28,6 +29,7 @@ func SetGlobal(l *Logger) {
 	globalLoggerLock.Lock()
 	defer globalLoggerLock.Unlock()
 	globalLogger = l
+	slog.SetDefault(l.Slogger())
 
 	l.T(context.Background(), "log level set to 'trace'")
 }

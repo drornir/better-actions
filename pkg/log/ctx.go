@@ -6,7 +6,7 @@ type ctxkey string
 
 var ctxval ctxkey = "logger"
 
-func (l *Logger) WithContext(ctx context.Context) context.Context {
+func (l *Logger) ContextWithLogger(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctxval, l)
 }
 

@@ -2,7 +2,6 @@ package config
 
 import "sync"
 
-// Define a struct
 type (
 	Config struct {
 		Log LogConfig `flag:"log" json:"log"`

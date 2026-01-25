@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 
-	"github.com/drornir/better-actions/pkg/runtime"
+	"github.com/drornir/better-actions/pkg/runner"
+	"github.com/drornir/better-actions/pkg/types"
 	"github.com/drornir/better-actions/pkg/yamls"
-	"github.com/drornir/better-actions/workflow"
 )
 
 var workflowCmd = &cobra.Command{
@@ -28,6 +30,17 @@ var workflowRunCmd = &cobra.Command{
 
 var workflowFile string
 
+// runWorkflowParams are flags that capture the standard data like github, inputs, secrets, vars
+// all values a re expted to be jsons.
+var runWorkflowParams struct {
+	github  string
+	env     string
+	inputs  string
+	secrets string
+	vars    string
+	runner  string
+}
+
 func init() {
 	// Add workflow command to root
 	rootCmd.AddCommand(workflowCmd)
@@ -38,6 +51,13 @@ func init() {
 	// Add flags to run command
 	workflowRunCmd.Flags().StringVarP(&workflowFile, "file", "f", "", "Path to the workflow file")
 	workflowRunCmd.MarkFlagRequired("file")
+
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.github, "github", "", "GitHub data")
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.env, "env", "", "Environment data")
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.inputs, "inputs", "", "Inputs data")
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.secrets, "secrets", "", "Secrets data")
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.vars, "vars", "", "Variables data")
+	workflowRunCmd.Flags().StringVar(&runWorkflowParams.runner, "runner", "", "Runner data")
 }
 
 func runWorkflow(cmd *cobra.Command, args []string) error {
@@ -59,7 +79,32 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Running workflow from: %s\n", absPath)
 
-	if err := executeWorkflowFile(ctx, absPath); err != nil {
+	var wfContext types.WorkflowContexts
+	{
+		unmarshals := []struct {
+			Name    string
+			Value   string
+			Pointer any
+		}{
+			{"github", runWorkflowParams.github, &wfContext.GitHub},
+			{"env", runWorkflowParams.env, &wfContext.Env},
+			{"inputs", runWorkflowParams.inputs, &wfContext.Inputs},
+			{"secrets", runWorkflowParams.secrets, &wfContext.Secrets},
+			{"vars", runWorkflowParams.vars, &wfContext.Vars},
+			{"runner", runWorkflowParams.runner, &wfContext.Runner},
+		}
+		for _, part := range unmarshals {
+			if part.Value == "" {
+				continue
+			}
+			err := json.Unmarshal([]byte(part.Value), part.Pointer)
+			if err != nil {
+				return oops.Errorf("failed to unmarshal %s data: %w", part.Name, err)
+			}
+		}
+	}
+
+	if err := executeWorkflowFile(ctx, absPath, &wfContext); err != nil {
 		return fmt.Errorf("failed to execute workflow: %w", err)
 	}
 
@@ -67,7 +112,7 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func executeWorkflowFile(ctx context.Context, filePath string) error {
+func executeWorkflowFile(ctx context.Context, filePath string, wfContext *types.WorkflowContexts) error {
 	// Read the workflow file
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -92,5 +137,8 @@ func executeWorkflowFile(ctx context.Context, filePath string) error {
 		return err
 	}
 
-	return runtime.RunWorkflow(ctx, &workflow.Workflow{YAML: wf})
+	rnr := runner.New(os.Stdout, runner.EnvFromChain(runner.EnvFromOS(), runner.EnvFromMap(wfContext.Env)))
+
+	_, err2 := rnr.RunWorkflow(ctx, wf, wfContext)
+	return err2
 }

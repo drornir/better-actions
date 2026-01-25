@@ -1,0 +1,51 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: print-env
+        run: |
+          echo $MY_SPECIAL_ENV_VAR
+      - name: store to env
+        run: |
+          set -euo pipefail
+          echo "inline_env_var=$MY_SPECIAL_ENV_VAR" >> $GITHUB_ENV
+      - name: print from inline env var
+        run: echo value is $inline_env_var
+
+      - name: path set
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          cat <<'EOF' > bin/custom_executable
+          #!/usr/bin/env bash
+          echo "hello from $(basename $0)"
+          pwd
+          EOF
+
+          chmod +x bin/custom_executable
+          echo "$(pwd)/bin" >> $GITHUB_PATH
+      - name: path check
+        run: |
+          # echo $PATH
+          type custom_executable
+          custom_executable
+
+      - name: inline-setters
+        run: |
+          echo '::echo::ON'
+          echo '::set-env name=WAS_SET_BY_INLINE_COMMAND::true'
+          echo '::set-output name=was_set_by_inline_command::true'
+          echo '::add-mask::xx-VERY-SECRET-VALUE-xx'
+
+      - name: check inline setters
+        run: |
+          echo WAS_SET_BY_INLINE_COMMAND=$WAS_SET_BY_INLINE_COMMAND
+          # TODO check 'was_set_by_inline_command' was set
+          echo my secret is xx-VERY-SECRET-VALUE-xx
+
+      - name: cleanup
+        run: |
+          rm -rf ./bin
