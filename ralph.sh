@@ -2,31 +2,7 @@
 
 set -euo pipefail
 
-OUTFILE="$(mktemp)"
 MAIN_PID=$$
-
-function clean_up() {
-    # Kill the tail process if it's still running
-    if [[ -n "${TAIL_PID:-}" ]] && kill -0 "$TAIL_PID" 2>/dev/null; then
-        kill "$TAIL_PID" 2>/dev/null || true
-    fi
-    rm -f "$OUTFILE"
-}
-
-trap clean_up EXIT
-
-function tail_for_completion() {
-    tail -f "$OUTFILE" 2>/dev/null | while IFS= read -r line; do
-        if [[ "$line" == *"ALL TASKS COMPLETE!"* ]]; then
-            echo
-            echo -e "\e[32m✓ $line\e[0m"
-            echo
-            # Kill the main process to trigger clean exit
-            kill -TERM "$MAIN_PID"
-            exit 0
-        fi
-    done
-}
 
 function main() {
     local spec_dir=$1
@@ -40,13 +16,6 @@ function main() {
         exit 1
     fi
 
-    # Create the output file before tailing
-    touch "$OUTFILE"
-
-    # Start monitoring the output file in the background
-    tail_for_completion &
-    TAIL_PID=$!
-
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local codex_flags=(
@@ -59,13 +28,35 @@ function main() {
     )
 
     while true; do
+        READY_FOR_COMPLETION=0
         echo
         echo -e "\e[32mStarting Ralph Loop\e[0m"
         echo
         # gemini --yolo --model gemini-3-pro-preview \
         codex exec  "${codex_flags[@]}" \
           < "${spec_dir}/prompt.md" \
-          | tee "$OUTFILE"
+          2>&1 | tee /dev/tty | while IFS= read -r line; do
+            # Strip ANSI colors to make matching robust.
+            clean_line="$(printf '%s' "$line" | sed -E 's/\x1b\[[0-9;]*m//g')"
+            # Avoid matching the prompt echo; wait for runtime output markers.
+            if [[ "$READY_FOR_COMPLETION" != "1" ]]; then
+                if [[ "$clean_line" == mcp\ startup:* ]] || \
+                   [[ "$clean_line" == "assistant" ]] || \
+                   [[ "$clean_line" == "codex" ]] || \
+                   [[ "$clean_line" == "thinking" ]] || \
+                   [[ "$clean_line" == "tokens used" ]]; then
+                    READY_FOR_COMPLETION=1
+                fi
+            fi
+            if [[ "$READY_FOR_COMPLETION" == "1" ]] && [[ "$clean_line" == *"ALL TASKS COMPLETE"* ]]; then
+                echo
+                echo -e "\e[32m✓ $clean_line\e[0m"
+                echo
+                # Kill the main process to trigger clean exit
+                kill -TERM "$MAIN_PID"
+                exit 0
+            fi
+        done
     done
 }
 
