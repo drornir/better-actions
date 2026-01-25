@@ -32,12 +32,12 @@
 ### Phase 2: Environment Isolation (Pending)
 
 #### 6. Verify Environment Variables (Intra-Job)
-- [ ] **Test: Persistence** (`examples/workflows/env_persistence.yaml`)
-  - [ ] Step 1: `echo "MY_VAR=persisted" >> $GITHUB_ENV`
-  - [ ] Step 2: Verify `$MY_VAR` is "persisted".
-- [ ] **Test: Path Modification**
-  - [ ] Step 1: Add directory to `$GITHUB_PATH`.
-  - [ ] Step 2: Verify binary in that directory is executable.
+- [x] **Test: Persistence** (`examples/workflows/env_persistence.yaml`)
+  - [x] Step 1: `echo "MY_VAR=persisted" >> $GITHUB_ENV`
+  - [x] Step 2: Verify `$MY_VAR` is "persisted".
+- [x] **Test: Path Modification**
+  - [x] Step 1: Add directory to `$GITHUB_PATH`.
+  - [x] Step 2: Verify binary in that directory is executable.
 
 #### 7. Verify Job Isolation (Inter-Job & Future Proofing)
 *Note: Even if jobs run sequentially now, these tests ensure future concurrency doesn't break isolation.*
