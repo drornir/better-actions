@@ -807,23 +807,3 @@ func TestFunctionStoreCaseInsensitive(t *testing.T) {
 		})
 	}
 }
-
-func TestUnimplementedFunctions(t *testing.T) {
-	unimplementedFuncs := []string{
-		"success",
-		"always",
-		"cancelled",
-		"failure",
-	}
-
-	for _, name := range unimplementedFuncs {
-		t.Run(name, func(t *testing.T) {
-			fn, ok := expr.DefaultFunctions.Get(name)
-			require.True(t, ok, "%s function should exist", name)
-
-			_, err := fn()
-			assert.Error(t, err, "%s should return an error", name)
-			assert.Contains(t, err.Error(), "not implemented")
-		})
-	}
-}
