@@ -29,6 +29,7 @@ const (
 type StepContext struct {
 	IndexInJob   int
 	WorkingDir   *os.Root
+	WorkspaceDir string
 	Env          map[string]string
 	StepID       string
 	Console      io.Writer

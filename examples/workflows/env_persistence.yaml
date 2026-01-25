@@ -1,0 +1,35 @@
+name: Environment Persistence Test
+jobs:
+  test-env-persistence:
+    runs-on: local
+    steps:
+      - name: Set Environment Variable
+        run: echo "MY_VAR=persisted" >> $GITHUB_ENV
+      - name: Verify Environment Variable
+        run: |
+          if [ "$MY_VAR" != "persisted" ]; then
+            echo "Expected MY_VAR to be 'persisted', got '$MY_VAR'"
+            exit 1
+          fi
+          echo "MY_VAR is correctly set to $MY_VAR"
+
+      - name: Create Dummy Binary
+        run: |
+          mkdir -p my-tools
+          echo '#!/bin/sh' > my-tools/my-tool
+          echo 'echo "tool executed"' >> my-tools/my-tool
+          chmod +x my-tools/my-tool
+          echo "$GITHUB_WORKSPACE/my-tools" >> $GITHUB_PATH
+
+      - name: Verify Path Modification
+        run: |
+          if ! command -v my-tool > /dev/null; then
+            echo "my-tool not found in PATH"
+            exit 1
+          fi
+          output=$(my-tool)
+          if [ "$output" != "tool executed" ]; then
+            echo "Expected output 'tool executed', got '$output'"
+            exit 1
+          fi
+          echo "my-tool executed successfully"

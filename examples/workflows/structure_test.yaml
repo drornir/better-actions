@@ -1,0 +1,9 @@
+name: Structure Test
+jobs:
+  check-locations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Expose Paths
+        id: expose
+        run: |
+          echo "ENV_PATH=$GITHUB_ENV" >> $GITHUB_OUTPUT

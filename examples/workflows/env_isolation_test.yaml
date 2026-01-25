@@ -1,0 +1,23 @@
+name: Environment Isolation Test
+jobs:
+  job-persistence:
+    runs-on: local
+    steps:
+      - name: Set Environment Variable
+        run: echo "JOB_VAR=A" >> $GITHUB_ENV
+      - name: Verify Environment Variable Persistence
+        run: |
+          if [ "$JOB_VAR" != "A" ]; then
+            echo "JOB_VAR is not set correctly in subsequent step: $JOB_VAR"
+            exit 1
+          fi
+
+  job-isolation:
+    runs-on: local
+    steps:
+      - name: Verify Environment Variable Isolation
+        run: |
+          if [ -n "$JOB_VAR" ]; then
+            echo "JOB_VAR should not be set in a different job: $JOB_VAR"
+            exit 1
+          fi

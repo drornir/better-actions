@@ -26,6 +26,7 @@ type Job struct {
 	InitialEnv   map[string]string
 	Workflow     *WorkflowState
 	jobFilesRoot *os.Root
+	WorkspaceDir string
 	debugEnabled bool
 
 	stepsEnvLock      sync.RWMutex
@@ -153,19 +154,32 @@ func (j *Job) prepareJob(
 	j.stepStates = make(map[string]map[string]string)
 	j.stepSummaries = make(map[string]string)
 
-	jobFilesPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
+	jobRootPath, err := os.MkdirTemp(os.TempDir(), "bact-job-"+jobName+"-")
 	if err != nil {
-		return cleanup.Noop, oopser.Wrapf(err, "creating job files directory")
+		return cleanup.Noop, oopser.Wrapf(err, "creating job root directory")
 	}
-	cleanup.Add(func() { os.RemoveAll(jobFilesPath) })
-	jobFilesRoot, err := os.OpenRoot(jobFilesPath)
+	cleanup.Add(func() { os.RemoveAll(jobRootPath) })
+
+	jobRoot, err := os.OpenRoot(jobRootPath)
 	if err != nil {
 		cleanup.Run()
-		return cleanup.Noop, oopser.Wrapf(err, "opening job files directory")
+		return cleanup.Noop, oopser.Wrapf(err, "opening job root directory")
 	}
-	cleanup.Add(func() { jobFilesRoot.Close() })
+	cleanup.Add(func() { jobRoot.Close() })
 
-	j.jobFilesRoot = jobFilesRoot
+	j.jobFilesRoot = jobRoot
+
+	if err := jobRoot.Mkdir("workspace", 0o755); err != nil {
+		cleanup.Run()
+		return cleanup.Noop, oopser.Wrapf(err, "creating workspace directory")
+	}
+	j.WorkspaceDir = path.Join(jobRootPath, "workspace")
+	j.stepsEnv["GITHUB_WORKSPACE"] = j.WorkspaceDir
+
+	if err := jobRoot.Mkdir("steps", 0o755); err != nil {
+		cleanup.Run()
+		return cleanup.Noop, oopser.Wrapf(err, "creating steps directory")
+	}
 
 	return cleanup.Run, nil
 }
@@ -173,11 +187,13 @@ func (j *Job) prepareJob(
 func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.Step) (*StepContext, error) {
 	oopser := oops.FromContext(ctx)
 	stpID := makeStepID(indexInJob, step)
-	err := j.jobFilesRoot.MkdirAll(stpID, 0o755)
+	stepRelPath := path.Join("steps", stpID)
+
+	err := j.jobFilesRoot.MkdirAll(stepRelPath, 0o755)
 	if err != nil {
 		return nil, oopser.Wrapf(err, "creating step directory")
 	}
-	wd, err := os.OpenRoot(path.Join(j.jobFilesRoot.Name(), stpID))
+	wd, err := os.OpenRoot(path.Join(j.jobFilesRoot.Name(), stepRelPath))
 	if err != nil {
 		return nil, oopser.Wrapf(err, "opening step directory")
 	}
@@ -208,11 +224,12 @@ func (j *Job) newStepContext(ctx context.Context, indexInJob int, step *yamls.St
 	}
 
 	return &StepContext{
-		StepID:     stpID,
-		Console:    j.Console,
-		IndexInJob: indexInJob,
-		WorkingDir: wd,
-		Env:        env,
+		StepID:       stpID,
+		Console:      j.Console,
+		IndexInJob:   indexInJob,
+		WorkingDir:   wd,
+		WorkspaceDir: j.WorkspaceDir,
+		Env:          env,
 	}, nil
 }
 

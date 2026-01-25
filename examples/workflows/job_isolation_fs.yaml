@@ -1,0 +1,31 @@
+name: Job File System Isolation Test
+jobs:
+  job-a:
+    runs-on: local
+    steps:
+      - name: Verify File Does Not Exist
+        run: |
+          if [ -f workspace_file.txt ]; then
+            echo "File exists but should not (dirty workspace)"
+            exit 1
+          fi
+      - name: Create File
+        run: echo "Job A Content" > workspace_file.txt
+      - name: Verify File Exists
+        run: |
+          if [ ! -f workspace_file.txt ]; then
+            echo "File was not created"
+            exit 1
+          fi
+
+  job-b:
+    runs-on: local
+    steps:
+      - name: Verify File Does Not Exist
+        run: |
+          if [ -f workspace_file.txt ]; then
+            echo "File from Job A leaked to Job B"
+            exit 1
+          fi
+      - name: Create File
+        run: echo "Job B Content" > workspace_file.txt
