@@ -60,7 +60,7 @@ func TestStructureWorkflow(t *testing.T) {
 		}
 		t.Fatalf("Step output not found. Available keys: %v", keys)
 	}
-	
+
 	githubEnv := outputs["ENV_PATH"]
 	assert.NotEmpty(t, githubEnv, "GITHUB_ENV path should not be empty")
 
@@ -74,14 +74,14 @@ func TestStructureWorkflow(t *testing.T) {
 	// Check 3: GITHUB_ENV is NOT inside GITHUB_WORKSPACE
 	assert.False(t, strings.HasPrefix(githubEnv, workspaceDir),
 		"GITHUB_ENV (%s) should NOT be inside WorkspaceDir (%s)", githubEnv, workspaceDir)
-	
+
 	// Check 4: They share a common root
 	jobRootFromWorkspace := filepath.Dir(workspaceDir)
-	
+
 	stepsIndex := strings.LastIndex(githubEnv, "/steps/")
 	require.NotEqual(t, -1, stepsIndex, "steps directory not found in GITHUB_ENV path")
-	
+
 	jobRootFromEnv := githubEnv[:stepsIndex]
-	
+
 	assert.Equal(t, jobRootFromWorkspace, jobRootFromEnv, "Workspace and Steps should share the same job root")
 }

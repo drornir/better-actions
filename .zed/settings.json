@@ -3,17 +3,17 @@
     "gopls": {
       "initialization_options": {
         "env": {
-          "GOEXPERIMENT": "jsonv2"
+          "GOEXPERIMENT": "jsonv2",
         },
 
-        "formatting.gofumpt": true,
-        "formatting.local": "github.com/drornir/better-actions",
+        "gofumpt": true,
+        "local": "github.com/drornir/better-actions",
 
         "analyses": {
           "shadow": false,
           "unusedvariable": true,
           "ST1000": false,
-          "QF1004": false
+          "QF1004": false,
         },
         "staticcheck": true,
 
@@ -24,9 +24,9 @@
           "constantValues": true,
           "functionTypeParameters": true,
           "parameterNames": true,
-          "rangeVariableTypes": true
-        }
-      }
-    }
-  }
+          "rangeVariableTypes": true,
+        },
+      },
+    },
+  },
 }

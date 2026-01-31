@@ -33,8 +33,7 @@ func TestEnvPersistenceWorkflow(t *testing.T) {
 	}
 
 	// Run workflow
-	_, err = run.RunWorkflow(ctx, wf, &types.WorkflowContexts{});
-	
+	_, err = run.RunWorkflow(ctx, wf, &types.WorkflowContexts{})
 	// Check for errors during execution
 	if err != nil {
 		t.Logf("Console Output:\n%s", consoleBuffer.String())

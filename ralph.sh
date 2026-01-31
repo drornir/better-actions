@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-MAIN_PID=$$
+# trigger a commit to get 1password to prompt
+git commit -m 'fake commit' --allow-empty
+git reset HEAD~1
 
 function main() {
     local spec_dir=$1
@@ -22,41 +24,37 @@ function main() {
         --color always
         -c model="gpt-5.2-codex"
         -c model_reasoning_effort="medium"
-        -c features.web_search_request=true
+        -c web_search_request=true
         -c sandbox_workspace_write.network_access=true
         --dangerously-bypass-approvals-and-sandbox
     )
 
     while true; do
-        READY_FOR_COMPLETION=0
+        local completed=0
+        local saw_complete_phrase_from_prompt=0
         echo
         echo -e "\e[32mStarting Ralph Loop\e[0m"
         echo
-        # gemini --yolo --model gemini-3-pro-preview \
-        codex exec  "${codex_flags[@]}" \
-          < "${spec_dir}/prompt.md" \
-          2>&1 | tee /dev/tty | while IFS= read -r line; do
-            # Strip ANSI colors to make matching robust.
-            clean_line="$(printf '%s' "$line" | sed -E 's/\x1b\[[0-9;]*m//g')"
-            # Avoid matching the prompt echo; wait for runtime output markers.
-            if [[ "$READY_FOR_COMPLETION" != "1" ]]; then
-                if [[ "$clean_line" == mcp\ startup:* ]] || \
-                   [[ "$clean_line" == "assistant" ]] || \
-                   [[ "$clean_line" == "codex" ]] || \
-                   [[ "$clean_line" == "thinking" ]] || \
-                   [[ "$clean_line" == "tokens used" ]]; then
-                    READY_FOR_COMPLETION=1
+
+        while IFS= read -r line; do
+            if [[ "$line" == *"ALL TASKS COMPLETE"* ]]; then
+                if [[ "$saw_complete_phrase_from_prompt" != "1" ]]; then
+                    saw_complete_phrase_from_prompt=1
+                else
+                    completed=1
                 fi
             fi
-            if [[ "$READY_FOR_COMPLETION" == "1" ]] && [[ "$clean_line" == *"ALL TASKS COMPLETE"* ]]; then
-                echo
-                echo -e "\e[32m✓ $clean_line\e[0m"
-                echo
-                # Kill the main process to trigger clean exit
-                kill -TERM "$MAIN_PID"
-                exit 0
-            fi
-        done
+        done < <(
+            codex exec "${codex_flags[@]}" \
+                < "${spec_dir}/prompt.md" \
+                2>&1 | tee /dev/tty
+        )
+
+        if [[ "$completed" == "1" ]]; then
+            echo
+            echo -e "\e[32mGOT ALL TASKS COMPLETE from LLM\e[0m"
+            exit 0
+        fi
     done
 }
 
