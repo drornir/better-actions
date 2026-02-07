@@ -9,8 +9,9 @@ jobs:
 
       - name: Absolute working directory
         run: |
-          if [ "$(pwd)" != "/tmp" ]; then
-            echo "expected /tmp, got $(pwd)"
+          expected_tmp="$(cd /tmp && pwd -P)"
+          if [ "$(pwd -P)" != "$expected_tmp" ]; then
+            echo "expected $expected_tmp, got $(pwd -P)"
             exit 1
           fi
           echo "absolute working-directory ok"
@@ -18,8 +19,9 @@ jobs:
 
       - name: Relative working directory
         run: |
-          if [ "$(pwd)" != "$GITHUB_WORKSPACE/relative-dir" ]; then
-            echo "expected $GITHUB_WORKSPACE/relative-dir, got $(pwd)"
+          expected_workspace_relative="$(cd "$GITHUB_WORKSPACE/relative-dir" && pwd -P)"
+          if [ "$(pwd -P)" != "$expected_workspace_relative" ]; then
+            echo "expected $expected_workspace_relative, got $(pwd -P)"
             exit 1
           fi
           echo "relative working-directory ok"

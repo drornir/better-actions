@@ -33,7 +33,7 @@ func TestHostProtectionWorkflow(t *testing.T) {
 
 			run := runner.New(
 				console,
-				runner.EnvFromEmpty(),
+				runner.EnvFromEmptyWithBasicPath(),
 			)
 
 			f, err := rootFs.Open(tc.filename)

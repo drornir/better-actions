@@ -44,6 +44,27 @@ func EnvFromEmpty() EnvFrom {
 	}
 }
 
+func EnvFromEmptyWithBasicPath() EnvFrom {
+	defaultPath := strings.Join([]string{
+		"/usr/local/sbin",
+		"/usr/local/bin",
+		"/usr/sbin",
+		"/usr/bin",
+		"/sbin",
+		"/bin",
+		"/opt/homebrew/bin",
+		"/opt/homebrew/sbin",
+		"/opt/local/bin",
+		"/opt/local/sbin",
+	}, string(os.PathListSeparator))
+
+	return func() map[string]string {
+		return map[string]string{
+			"PATH": defaultPath,
+		}
+	}
+}
+
 func EnvFromMap(env map[string]string) EnvFrom {
 	return func() map[string]string {
 		return env
