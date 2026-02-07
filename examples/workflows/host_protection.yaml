@@ -1,18 +1,33 @@
-name: Host Environment Protection Test
+name: Job Path Scope Test
 jobs:
-  host-protection:
+  path-within-job:
     runs-on: local
     steps:
-      - name: Update PATH inside job
+      - name: Add PATH entry for this job
         run: |
-          mkdir -p /tmp/bact-host-test
-          echo "PATH=/tmp/bact-host-test:$PATH" >> $GITHUB_ENV
-      - name: Verify PATH updated in job
+          mkdir -p bin
+          cat <<'EOF' > bin/job-only-tool
+          #!/usr/bin/env sh
+          echo job-only-tool-ran
+          EOF
+          chmod +x bin/job-only-tool
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+      - name: Verify PATH updated in same job
         run: |
-          case "$PATH" in
-            /tmp/bact-host-test:*) echo "PATH updated in job" ;;
-            *)
-              echo "PATH not updated in job: $PATH"
-              exit 1
-              ;;
-          esac
+          if ! command -v job-only-tool >/dev/null; then
+            echo "job-only-tool not found in PATH"
+            exit 1
+          fi
+          job-only-tool
+          echo "same job path propagation ok"
+
+  path-across-jobs:
+    runs-on: local
+    steps:
+      - name: Verify PATH does not leak from another job
+        run: |
+          if command -v job-only-tool >/dev/null; then
+            echo "job-only-tool leaked from another job"
+            exit 1
+          fi
+          echo "cross-job path isolation ok"

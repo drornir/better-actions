@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +20,7 @@ func TestHostProtectionWorkflow(t *testing.T) {
 		filename string
 	}{
 		{
-			name:     "host env remains unchanged",
+			name:     "path updates are scoped to a job",
 			filename: "host_protection.yaml",
 		},
 	}
@@ -31,11 +30,10 @@ func TestHostProtectionWorkflow(t *testing.T) {
 			ctx := makeContext(t, slog.LevelDebug, "file", tc.filename)
 			consoleBuffer := &bytes.Buffer{}
 			console := io.MultiWriter(consoleBuffer, t.Output())
-			originalPath := os.Getenv("PATH")
 
 			run := runner.New(
 				console,
-				runner.EnvFromOS(),
+				runner.EnvFromEmpty(),
 			)
 
 			f, err := rootFs.Open(tc.filename)
@@ -48,8 +46,8 @@ func TestHostProtectionWorkflow(t *testing.T) {
 			require.NoError(t, err, "failed to run workflow")
 
 			output := consoleBuffer.String()
-			assert.Contains(t, output, "PATH updated in job")
-			assert.Equal(t, originalPath, os.Getenv("PATH"), "PATH should not change in host process")
+			assert.Contains(t, output, "same job path propagation ok")
+			assert.Contains(t, output, "cross-job path isolation ok")
 		})
 	}
 }

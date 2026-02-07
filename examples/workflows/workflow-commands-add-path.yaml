@@ -1,0 +1,26 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  add-path-legacy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: create tool
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          cat <<'EOF' > bin/legacy-path-tool
+          #!/usr/bin/env sh
+          echo "legacy path tool"
+          EOF
+          chmod +x bin/legacy-path-tool
+      - name: add path using legacy command
+        run: |
+          echo "::add-path::$(pwd)/bin"
+      - name: verify tool on path
+        run: |
+          if ! command -v legacy-path-tool >/dev/null; then
+            echo "legacy-path-tool not found in PATH"
+            exit 1
+          fi
+          legacy-path-tool

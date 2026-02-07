@@ -1,9 +1,17 @@
 name: Structure Test
 jobs:
-  check-locations:
+  env-and-output:
     runs-on: ubuntu-latest
     steps:
-      - name: Expose Paths
-        id: expose
+      - name: Write environment and output
+        id: write
         run: |
-          echo "ENV_PATH=$GITHUB_ENV" >> $GITHUB_OUTPUT
+          echo "FROM_ENV_FILE=from-env-file" >> $GITHUB_ENV
+          echo "from_output_file=from-output-file" >> $GITHUB_OUTPUT
+      - name: Verify env propagation
+        run: |
+          if [ "$FROM_ENV_FILE" != "from-env-file" ]; then
+            echo "expected FROM_ENV_FILE=from-env-file, got $FROM_ENV_FILE"
+            exit 1
+          fi
+          echo "env propagation ok"

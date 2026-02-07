@@ -1,9 +1,26 @@
-name: Safety Absolute Path Test
+name: Working Directory Parity Test
 on: push
 jobs:
-  test-abs-path:
+  test-working-directory:
     runs-on: local
     steps:
-      - name: Try to use absolute path
-        run: echo "This should fail"
+      - name: Prepare relative directory
+        run: mkdir -p relative-dir
+
+      - name: Absolute working directory
+        run: |
+          if [ "$(pwd)" != "/tmp" ]; then
+            echo "expected /tmp, got $(pwd)"
+            exit 1
+          fi
+          echo "absolute working-directory ok"
         working-directory: /tmp
+
+      - name: Relative working directory
+        run: |
+          if [ "$(pwd)" != "$GITHUB_WORKSPACE/relative-dir" ]; then
+            echo "expected $GITHUB_WORKSPACE/relative-dir, got $(pwd)"
+            exit 1
+          fi
+          echo "relative working-directory ok"
+        working-directory: relative-dir

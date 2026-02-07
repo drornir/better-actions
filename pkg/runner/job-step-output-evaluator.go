@@ -69,6 +69,9 @@ func (e *JobStepOutputEvaluator) ExecuteCommand(ctx context.Context, command Par
 		return nil
 
 	case WorkflowCommandNameAddPath:
+		if !e.job.AllowUnsecureCommands() {
+			return oopser.Errorf(unsupportedCommandMessageDisabled, command.Command.String())
+		}
 		echoIfEnabled()
 		if command.Data == "" {
 			return oopser.Errorf("path cannot be empty")

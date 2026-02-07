@@ -54,10 +54,10 @@ func (s *StepRun) Run(ctx context.Context, writeTo io.Writer) (StepResult, error
 	workDir := s.Config.WorkingDirectory
 	if workDir == "" {
 		workDir = s.Context.WorkspaceDir
-	} else if filepath.IsAbs(workDir) {
-		return StepResult{}, oopser.Errorf("absolute paths are not allowed in working-directory: %s", workDir)
 	} else {
-		workDir = filepath.Join(s.Context.WorkspaceDir, workDir)
+		if !filepath.IsAbs(workDir) {
+			workDir = filepath.Join(s.Context.WorkspaceDir, workDir)
+		}
 	}
 
 	cmd := sh.NewCommand(ctx, shell.CommandOpts{

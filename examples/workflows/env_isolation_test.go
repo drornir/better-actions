@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,12 +20,9 @@ func TestEnvIsolationWorkflow(t *testing.T) {
 	consoleBuffer := &bytes.Buffer{}
 	console := io.MultiWriter(consoleBuffer, t.Output())
 
-	// Ensure the test variable is NOT in the host environment
-	os.Unsetenv("JOB_VAR")
-
 	run := runner.New(
 		console,
-		runner.EnvFromOS(), // We want to test that we inherit OS env, but don't leak back
+		runner.EnvFromEmpty(),
 	)
 
 	f, err := rootFs.Open(filename)
@@ -40,10 +36,6 @@ func TestEnvIsolationWorkflow(t *testing.T) {
 	require.NoError(t, err, "failed to run workflow")
 
 	output := consoleBuffer.String()
-	t.Log(output)
-
-	// Verify persistence within job-persistence (implicitly verified by the shell script exit code)
-	// Verify isolation from host
-	_, exists := os.LookupEnv("JOB_VAR")
-	assert.False(t, exists, "JOB_VAR should not leak to host process")
+	assert.Contains(t, output, "same job env persistence ok")
+	assert.Contains(t, output, "cross-job env isolation ok")
 }

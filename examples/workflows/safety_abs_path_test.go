@@ -13,7 +13,7 @@ import (
 	"github.com/drornir/better-actions/pkg/yamls"
 )
 
-func TestSafetyAbsPathWorkflow(t *testing.T) {
+func TestWorkingDirectoryParityWorkflow(t *testing.T) {
 	const filename = "safety_abs_path.yaml"
 	ctx := makeContext(t, slog.LevelDebug, "file", filename)
 	consoleBuffer := &bytes.Buffer{}
@@ -33,10 +33,9 @@ func TestSafetyAbsPathWorkflow(t *testing.T) {
 	}
 
 	_, err = run.RunWorkflow(ctx, wf, &types.WorkflowContexts{})
-	if err == nil {
-		t.Fatal("Workflow should have failed due to absolute path in working-directory")
+	if err != nil {
+		t.Fatal("failed to run workflow:", err)
 	}
-
-	// Verify the error message contains the expected string
-	assert.ErrorContains(t, err, "absolute paths are not allowed")
+	assert.Contains(t, consoleBuffer.String(), "absolute working-directory ok")
+	assert.Contains(t, consoleBuffer.String(), "relative working-directory ok")
 }
