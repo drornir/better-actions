@@ -10,16 +10,14 @@ lint: `go vet ./...`, `staticcheck`
 
 debug: use dlv
 
+> GOEXPERIMENT=jsonv2 is used
+
 ## Extra task specific guidelines
 
 When writing code, consult `.agents/code-style.md`
 
 When exploring the codebase, consult `.agents/codebase-structure.md`
 
-## Other Notes
-
-README.md usually won't have anything interesting for you.
-
 ## Workflow
 
-Before committing, format, lint, build, test.
+Before committing: format, lint, build, test.
